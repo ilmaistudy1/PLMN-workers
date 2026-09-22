@@ -32,13 +32,15 @@ $$;
 create or replace function private.user_highest_role_rank(p_user_id uuid)
 returns smallint language sql stable security definer
 set search_path = pg_catalog, public
-as $$
-  select case when private.user_account_is_active(p_user_id)
-    then coalesce((select max(r.rank)::smallint
-      from public.user_roles ur join public.roles r on r.id = ur.role_id
-      where ur.user_id = p_user_id and r.is_active = true), 0)::smallint
-    else 0::smallint end;
-$$;
+as $
+  select coalesce((
+    select max(r.rank)::smallint
+    from public.user_roles ur
+    join public.roles r on r.id = ur.role_id
+    where ur.user_id = p_user_id
+      and r.is_active = true
+  ), 0)::smallint;
+$;
 
 create or replace function private.user_can_access_area_in_scope(p_user_id uuid, p_area_id uuid)
 returns boolean language sql stable security definer
