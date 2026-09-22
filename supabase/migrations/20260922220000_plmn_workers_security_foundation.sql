@@ -531,7 +531,7 @@ begin
     'area_changed',
     'area',
     coalesce(new.id, old.id),
-    coalesce(new.id, old.id),
+    case when tg_op = 'DELETE' then null else coalesce(new.id, old.id) end,
     jsonb_build_object(
       'operation', tg_op,
       'parent_id', coalesce(new.parent_id, old.parent_id),
