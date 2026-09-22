@@ -61,3 +61,15 @@ Database schema/RLS, role permissions, worker/supporter CRUD, search/filter/impo
 - Anonymous execute privileges for both application RPCs are disabled; authenticated execute is enabled.
 - All application tables remain RLS-protected.
 - GitHub Actions verification run is active with lint/typecheck/build configured; previous CI failure was caused by an npm cache requiring a nonexistent lockfile, and the workflow was corrected to install without cache/lockfile requirements.
+
+
+## Prompt 3 final verification
+- Final GitHub Actions verification run 37 (`8b38b255e2285464f801a8fb056850d618a7b2ad`) completed successfully.
+- npm install: success.
+- npm run lint: success.
+- npm run typecheck: success.
+- npm run build: success.
+- Supabase security advisor: no findings.
+- Supabase performance advisor: only INFO-level currently-unused-index notices remain; this is expected on an empty database and does not indicate a correctness or security issue.
+- The connected PLMN Supabase project contains no application users or member records yet, so no fake people or phone numbers were introduced.
+- Final code preserves Prompt 2 RLS/database authorization and keeps search/dashboard RPCs restricted to authenticated users.
