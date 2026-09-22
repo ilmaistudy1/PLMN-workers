@@ -1,1 +1,176 @@
-"use client";\n\nimport Link from "next/link";\nimport { useCallback, useEffect, useMemo, useState } from "react";\nimport { useRouter } from "next/navigation";\n\ntype Area = { id: string; parent_id: string | null; name: string; level: string; is_active: boolean };\ntype Role = { id: string; name: string; is_active: boolean };\ntype Row = {\n  id: string;\n  full_name: string;\n  primary_phone: string | null;\n  area_name: string;\n  area_level: string;\n  member_role_name: string;\n  status: string;\n};\n\nfunction descendants(areas: Area[], rootId: string) {\n  const result = new Set<string>([rootId]);\n  let changed = true;\n  while (changed) {\n    changed = false;\n    for (const area of areas) {\n      if (area.parent_id && result.has(area.parent_id) && !result.has(area.id)) {\n        result.add(area.id);\n        changed = true;\n      }\n    }\n  }\n  return result;\n}\n\nfunction isUnder(areas: Area[], areaId: string, rootId: string) {\n  return descendants(areas, rootId).has(areaId);\n}\n\nfunction levelMatch(area: Area, levels: string[]) {\n  return levels.includes(area.level.toLowerCase());\n}\n\nfunction prettyLevel(level: string) {\n  return level.replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());\n}\n\nfunction escapeRegExp(value: string) {\n  return value.replace(/[.*+?^$()|[\]\\]/g, "\\$&");\n}\n\nfunction Highlight({ value, query }: { value: string; query: string }) {\n  const trimmed = query.trim();\n  if (!trimmed) return <>{value}</>;\n  const parts = value.split(new RegExp("(" + escapeRegExp(trimmed) + ")", "ig"));\n  return <>\n    {parts.map((part, index) => part.toLowerCase() === trimmed.toLowerCase()\n      ? <mark key={index} className="rounded bg-amber-100 px-0.5">{part}</mark>\n      : <span key={index}>{part}</span>)}\n  </>;\n}\n\nexport function MemberSearch({\n  areas,\n  roles,\n  initialRows,\n  initialTotal,\n  canManage,\n}: {\n  areas: Area[];\n  roles: Role[];\n  initialRows: Row[];\n  initialTotal: number;\n  canManage: boolean;\n}) {\n  const router = useRouter();\n  const [search, setSearch] = useState("");\n  const [province, setProvince] = useState("");\n  const [district, setDistrict] = useState("");\n  const [tehsil, setTehsil] = useState("");\n  const [localArea, setLocalArea] = useState("");\n  const [role, setRole] = useState("");\n  const [status, setStatus] = useState("");\n  const [rows, setRows] = useState<Row[]>(initialRows);\n  const [total, setTotal] = useState(initialTotal);\n  const [page, setPage] = useState(1);\n  const [activeIndex, setActiveIndex] = useState(-1);\n  const [loading, setLoading] = useState(false);\n  const pageSize = 25;\n\n  const provinceOptions = useMemo(() => areas.filter((area) => levelMatch(area, ["province", "region"]) && area.is_active), [areas]);\n  const districtOptions = useMemo(() => areas.filter((area) => levelMatch(area, ["district"]) && area.is_active && (!province || isUnder(areas, area.id, province))), [areas, province]);\n  const tehsilOptions = useMemo(() => areas.filter((area) => levelMatch(area, ["tehsil"]) && area.is_active && (!(district || province) || isUnder(areas, area.id, district || province))), [areas, district, province]);\n  const localOptions = useMemo(() => areas.filter((area) => levelMatch(area, ["local area", "local_area", "area"]) && area.is_active && (!(tehsil || district || province) || isUnder(areas, area.id, tehsil || district || province))), [areas, tehsil, district, province]);\n  const selectedArea = localArea || tehsil || district || province;\n\n  const runSearch = useCallback(async (nextPage: number) => {\n    setLoading(true);\n    try {\n      const response = await fetch("/api/members/search", {\n        method: "POST",\n        headers: { "Content-Type": "application/json" },\n        body: JSON.stringify({ search, area_id: selectedArea || null, member_role_id: role || null, status: status || null, page: nextPage, page_size: pageSize }),\n      });\n      const payload = await response.json() as { rows?: Row[]; total?: number };\n      if (response.ok) {\n        setRows(payload.rows ?? []);\n        setTotal(Number(payload.total ?? 0));\n        setPage(nextPage);\n        setActiveIndex(-1);\n      }\n    } finally {\n      setLoading(false);\n    }\n  }, [search, selectedArea, role, status]);\n\n  useEffect(() => {\n    const timer = window.setTimeout(() => void runSearch(1), 350);\n    return () => window.clearTimeout(timer);\n  }, [runSearch]);\n\n  function handleSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {\n    if (event.key === "ArrowDown" && rows.length) {\n      event.preventDefault();\n      setActiveIndex((index) => Math.min(index + 1, rows.length - 1));\n    } else if (event.key === "ArrowUp" && rows.length) {\n      event.preventDefault();\n      setActiveIndex((index) => Math.max(index - 1, 0));\n    } else if (event.key === "Enter" && activeIndex >= 0 && rows[activeIndex]) {\n      event.preventDefault();\n      router.push("/dashboard/members/" + rows[activeIndex].id);\n    } else if (event.key === "Escape") {\n      setSearch("");\n      setActiveIndex(-1);\n    }\n  }\n\n  const totalPages = Math.max(1, Math.ceil(total / pageSize));\n  const firstResult = total === 0 ? 0 : ((page - 1) * pageSize) + 1;\n  const lastResult = Math.min(page * pageSize, total);\n\n  return <section className="space-y-5">\n    <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">\n      <label className="sr-only" htmlFor="member-search">Search members</label>\n      <input id="member-search" value={search} onChange={(event) => { setSearch(event.target.value); setActiveIndex(-1); }} onKeyDown={handleSearchKeyDown} aria-activedescendant={activeIndex >= 0 ? "member-result-" + rows[activeIndex]?.id : undefined} aria-describedby="member-search-help" placeholder="Search by name, phone, area or member role..." className="h-12 w-full rounded-xl border border-slate-300 px-4 text-base outline-none focus:border-slate-900" />\n      <p id="member-search-help" className="mt-2 text-xs text-slate-400">Use ↑ ↓ to move through results and Enter to open one.</p>\n      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">\n        <select value={province} onChange={(e) => { setProvince(e.target.value); setDistrict(""); setTehsil(""); setLocalArea(""); }} className="h-10 rounded-lg border border-slate-300 px-3 text-sm"><option value="">Province / Region</option>{provinceOptions.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}</select>\n        <select value={district} onChange={(e) => { setDistrict(e.target.value); setTehsil(""); setLocalArea(""); }} className="h-10 rounded-lg border border-slate-300 px-3 text-sm"><option value="">District</option>{districtOptions.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}</select>\n        <select value={tehsil} onChange={(e) => { setTehsil(e.target.value); setLocalArea(""); }} className="h-10 rounded-lg border border-slate-300 px-3 text-sm"><option value="">Tehsil</option>{tehsilOptions.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}</select>\n        <select value={localArea} onChange={(e) => setLocalArea(e.target.value)} className="h-10 rounded-lg border border-slate-300 px-3 text-sm"><option value="">Local Area</option>{localOptions.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}</select>\n        <select value={role} onChange={(e) => setRole(e.target.value)} className="h-10 rounded-lg border border-slate-300 px-3 text-sm"><option value="">Member role</option>{roles.filter((item) => item.is_active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>\n        <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 rounded-lg border border-slate-300 px-3 text-sm"><option value="">All status</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="archived">Archived</option></select>\n      </div>\n    </div>\n\n    <div className="flex flex-wrap items-center justify-between gap-3">\n      <p className="text-sm text-slate-500">{total === 0 ? "No matching members" : "Showing " + firstResult.toLocaleString() + "–" + lastResult.toLocaleString() + " of " + total.toLocaleString()}</p>\n      {canManage && <Link href="/dashboard/members/new" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Add Member</Link>}\n    </div>\n\n    <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">\n      {loading ? <div className="space-y-3 p-5" aria-live="polite" aria-busy="true">{Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-12 animate-pulse rounded-lg bg-slate-100" />)}</div>\n      : rows.length === 0 ? <div className="p-10 text-center"><p className="font-semibold text-slate-900">{search || selectedArea || role || status ? "No matching members" : "No members yet"}</p><p className="mt-1 text-sm text-slate-500">{search || selectedArea || role || status ? "Try another search term or clear a filter." : "Add the first member to start building your records."}</p></div>\n      : <div className="overflow-x-auto"><table className="min-w-[760px] w-full text-left text-sm"><thead className="border-b border-slate-200 bg-slate-50 text-slate-500"><tr><th className="px-4 py-3 font-medium">Member</th><th className="px-4 py-3 font-medium">Phone</th><th className="px-4 py-3 font-medium">Area</th><th className="px-4 py-3 font-medium">Role</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3" /></tr></thead>\n        <tbody className="divide-y divide-slate-100">{rows.map((row, index) => <tr id={"member-result-" + row.id} key={row.id} className={index === activeIndex ? "bg-slate-50 ring-1 ring-inset ring-slate-300" : "hover:bg-slate-50"}>\n          <td className="px-4 py-3"><Link href={"/dashboard/members/" + row.id} className="font-semibold text-slate-900 hover:underline"><Highlight value={row.full_name} query={search} /></Link></td>\n          <td className="px-4 py-3 text-slate-600"><Highlight value={row.primary_phone || "—"} query={search} /></td>\n          <td className="px-4 py-3"><span className="font-medium"><Highlight value={row.area_name} query={search} /></span><span className="ml-2 text-xs text-slate-400">{prettyLevel(row.area_level)}</span></td>\n          <td className="px-4 py-3 text-slate-600"><Highlight value={row.member_role_name} query={search} /></td>\n          <td className="px-4 py-3 capitalize text-slate-600">{row.status}</td>\n          <td className="px-4 py-3 text-right"><Link className="font-medium text-slate-700 hover:underline" href={"/dashboard/members/" + row.id}>View</Link></td>\n        </tr>)}</tbody></table></div>}\n    </div>\n\n    {total > pageSize && <div className="flex items-center justify-between gap-3"><button disabled={page === 1 || loading} onClick={() => void runSearch(page - 1)} className="rounded-lg bg-white px-4 py-2 text-sm ring-1 ring-slate-200 disabled:opacity-40">Previous</button><span className="text-sm text-slate-500">Page {page} of {totalPages}</span><button disabled={page >= totalPages || loading} onClick={() => void runSearch(page + 1)} className="rounded-lg bg-white px-4 py-2 text-sm ring-1 ring-slate-200 disabled:opacity-40">Next</button></div>}\n  </section>;\n}
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+type Area = { id: string; parent_id: string | null; name: string; level: string; is_active: boolean };
+type Role = { id: string; name: string; is_active: boolean };
+type Row = {
+  id: string;
+  full_name: string;
+  primary_phone: string | null;
+  area_name: string;
+  area_level: string;
+  member_role_name: string;
+  status: string;
+};
+
+function descendants(areas: Area[], rootId: string) {
+  const result = new Set<string>([rootId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const area of areas) {
+      if (area.parent_id && result.has(area.parent_id) && !result.has(area.id)) {
+        result.add(area.id);
+        changed = true;
+      }
+    }
+  }
+  return result;
+}
+
+function isUnder(areas: Area[], areaId: string, rootId: string) {
+  return descendants(areas, rootId).has(areaId);
+}
+
+function levelMatch(area: Area, levels: string[]) {
+  return levels.includes(area.level.toLowerCase());
+}
+
+function prettyLevel(level: string) {
+  return level.replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
+}
+
+function Highlight({ value, query }: { value: string; query: string }) {
+  const trimmed = query.trim();
+  if (!trimmed) return <>{value}</>;
+  const parts = value.split(new RegExp("(" + escapeRegExp(trimmed) + ")", "ig"));
+  return <>
+    {parts.map((part, index) => part.toLowerCase() === trimmed.toLowerCase()
+      ? <mark key={index} className="rounded bg-amber-100 px-0.5">{part}</mark>
+      : <span key={index}>{part}</span>)}
+  </>;
+}
+
+export function MemberSearch({
+  areas,
+  roles,
+  initialRows,
+  initialTotal,
+  canManage,
+}: {
+  areas: Area[];
+  roles: Role[];
+  initialRows: Row[];
+  initialTotal: number;
+  canManage: boolean;
+}) {
+  const router = useRouter();
+  const [search, setSearch] = useState("");
+  const [province, setProvince] = useState("");
+  const [district, setDistrict] = useState("");
+  const [tehsil, setTehsil] = useState("");
+  const [localArea, setLocalArea] = useState("");
+  const [role, setRole] = useState("");
+  const [status, setStatus] = useState("");
+  const [rows, setRows] = useState<Row[]>(initialRows);
+  const [total, setTotal] = useState(initialTotal);
+  const [page, setPage] = useState(1);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [loading, setLoading] = useState(false);
+  const pageSize = 25;
+
+  const provinceOptions = useMemo(() => areas.filter((area) => levelMatch(area, ["province", "region"]) && area.is_active), [areas]);
+  const districtOptions = useMemo(() => areas.filter((area) => levelMatch(area, ["district"]) && area.is_active && (!province || isUnder(areas, area.id, province))), [areas, province]);
+  const tehsilOptions = useMemo(() => areas.filter((area) => levelMatch(area, ["tehsil"]) && area.is_active && (!(district || province) || isUnder(areas, area.id, district || province))), [areas, district, province]);
+  const localOptions = useMemo(() => areas.filter((area) => levelMatch(area, ["local area", "local_area", "area"]) && area.is_active && (!(tehsil || district || province) || isUnder(areas, area.id, tehsil || district || province))), [areas, tehsil, district, province]);
+  const selectedArea = localArea || tehsil || district || province;
+
+  const runSearch = useCallback(async (nextPage: number) => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/members/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ search, area_id: selectedArea || null, member_role_id: role || null, status: status || null, page: nextPage, page_size: pageSize }),
+      });
+      const payload = await response.json() as { rows?: Row[]; total?: number };
+      if (response.ok) {
+        setRows(payload.rows ?? []);
+        setTotal(Number(payload.total ?? 0));
+        setPage(nextPage);
+        setActiveIndex(-1);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [search, selectedArea, role, status]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void runSearch(1), 350);
+    return () => window.clearTimeout(timer);
+  }, [runSearch]);
+
+  function handleSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown" && rows.length) {
+      event.preventDefault();
+      setActiveIndex((index) => Math.min(index + 1, rows.length - 1));
+    } else if (event.key === "ArrowUp" && rows.length) {
+      event.preventDefault();
+      setActiveIndex((index) => Math.max(index - 1, 0));
+    } else if (event.key === "Enter" && activeIndex >= 0 && rows[activeIndex]) {
+      event.preventDefault();
+      router.push("/dashboard/members/" + rows[activeIndex].id);
+    } else if (event.key === "Escape") {
+      setSearch("");
+      setActiveIndex(-1);
+    }
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const firstResult = total === 0 ? 0 : ((page - 1) * pageSize) + 1;
+  const lastResult = Math.min(page * pageSize, total);
+
+  return <section className="space-y-5">
+    <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+      <label className="sr-only" htmlFor="member-search">Search members</label>
+      <input id="member-search" value={search} onChange={(event) => { setSearch(event.target.value); setActiveIndex(-1); }} onKeyDown={handleSearchKeyDown} aria-activedescendant={activeIndex >= 0 ? "member-result-" + rows[activeIndex]?.id : undefined} aria-describedby="member-search-help" placeholder="Search by name, phone, area or member role..." className="h-12 w-full rounded-xl border border-slate-300 px-4 text-base outline-none focus:border-slate-900" />
+      <p id="member-search-help" className="mt-2 text-xs text-slate-400">Use ↑ ↓ to move through results and Enter to open one.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+        <select value={province} onChange={(e) => { setProvince(e.target.value); setDistrict(""); setTehsil(""); setLocalArea(""); }} className="h-10 rounded-lg border border-slate-300 px-3 text-sm"><option value="">Province / Region</option>{provinceOptions.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}</select>
+        <select value={district} onChange={(e) => { setDistrict(e.target.value); setTehsil(""); setLocalArea(""); }} className="h-10 rounded-lg border border-slate-300 px-3 text-sm"><option value="">District</option>{districtOptions.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}</select>
+        <select value={tehsil} onChange={(e) => { setTehsil(e.target.value); setLocalArea(""); }} className="h-10 rounded-lg border border-slate-300 px-3 text-sm"><option value="">Tehsil</option>{tehsilOptions.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}</select>
+        <select value={localArea} onChange={(e) => setLocalArea(e.target.value)} className="h-10 rounded-lg border border-slate-300 px-3 text-sm"><option value="">Local Area</option>{localOptions.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}</select>
+        <select value={role} onChange={(e) => setRole(e.target.value)} className="h-10 rounded-lg border border-slate-300 px-3 text-sm"><option value="">Member role</option>{roles.filter((item) => item.is_active).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 rounded-lg border border-slate-300 px-3 text-sm"><option value="">All status</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="archived">Archived</option></select>
+      </div>
+    </div>
+
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-sm text-slate-500">{total === 0 ? "No matching members" : "Showing " + firstResult.toLocaleString() + "–" + lastResult.toLocaleString() + " of " + total.toLocaleString()}</p>
+      {canManage && <Link href="/dashboard/members/new" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Add Member</Link>}
+    </div>
+
+    <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+      {loading ? <div className="space-y-3 p-5" aria-live="polite" aria-busy="true">{Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-12 animate-pulse rounded-lg bg-slate-100" />)}</div>
+      : rows.length === 0 ? <div className="p-10 text-center"><p className="font-semibold text-slate-900">{search || selectedArea || role || status ? "No matching members" : "No members yet"}</p><p className="mt-1 text-sm text-slate-500">{search || selectedArea || role || status ? "Try another search term or clear a filter." : "Add the first member to start building your records."}</p></div>
+      : <div className="overflow-x-auto"><table className="min-w-[760px] w-full text-left text-sm"><thead className="border-b border-slate-200 bg-slate-50 text-slate-500"><tr><th className="px-4 py-3 font-medium">Member</th><th className="px-4 py-3 font-medium">Phone</th><th className="px-4 py-3 font-medium">Area</th><th className="px-4 py-3 font-medium">Role</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3" /></tr></thead>
+        <tbody className="divide-y divide-slate-100">{rows.map((row, index) => <tr id={"member-result-" + row.id} key={row.id} className={index === activeIndex ? "bg-slate-50 ring-1 ring-inset ring-slate-300" : "hover:bg-slate-50"}>
+          <td className="px-4 py-3"><Link href={"/dashboard/members/" + row.id} className="font-semibold text-slate-900 hover:underline"><Highlight value={row.full_name} query={search} /></Link></td>
+          <td className="px-4 py-3 text-slate-600"><Highlight value={row.primary_phone || "—"} query={search} /></td>
+          <td className="px-4 py-3"><span className="font-medium"><Highlight value={row.area_name} query={search} /></span><span className="ml-2 text-xs text-slate-400">{prettyLevel(row.area_level)}</span></td>
+          <td className="px-4 py-3 text-slate-600"><Highlight value={row.member_role_name} query={search} /></td>
+          <td className="px-4 py-3 capitalize text-slate-600">{row.status}</td>
+          <td className="px-4 py-3 text-right"><Link className="font-medium text-slate-700 hover:underline" href={"/dashboard/members/" + row.id}>View</Link></td>
+        </tr>)}</tbody></table></div>}
+    </div>
+
+    {total > pageSize && <div className="flex items-center justify-between gap-3"><button disabled={page === 1 || loading} onClick={() => void runSearch(page - 1)} className="rounded-lg bg-white px-4 py-2 text-sm ring-1 ring-slate-200 disabled:opacity-40">Previous</button><span className="text-sm text-slate-500">Page {page} of {totalPages}</span><button disabled={page >= totalPages || loading} onClick={() => void runSearch(page + 1)} className="rounded-lg bg-white px-4 py-2 text-sm ring-1 ring-slate-200 disabled:opacity-40">Next</button></div>}
+  </section>;
+}
