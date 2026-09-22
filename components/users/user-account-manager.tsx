@@ -7,9 +7,9 @@ import { assignUserArea, removeUserArea, setUserAccountStatus, setUserApplicatio
 type Role = { id: string; code: string; name: string; rank: number; is_active: boolean };
 type Area = { id: string; name: string; level: string; is_active: boolean };
 
-export function UserAccountManager({ actorId, profile, roles, areas, assignments, activeRoleId }: { actorId: string; profile: { id: string; email: string | null; full_name: string | null; account_status: "active" | "disabled"; created_at: string; updated_at: string }; roles: Role[]; areas: Area[]; assignments: string[]; activeRoleId: string | null }) {
+export function UserAccountManager({ actorId, isSuperAdmin, profile, roles, areas, assignments, activeRoleId }: { actorId: string; isSuperAdmin: boolean; profile: { id: string; email: string | null; full_name: string | null; account_status: "active" | "disabled"; created_at: string; updated_at: string }; roles: Role[]; areas: Area[]; assignments: string[]; activeRoleId: string | null }) {
   const router = useRouter(); const [pending, startTransition] = useTransition(); const [message, setMessage] = useState("");
-  const manageableRoles = useMemo(() => roles.filter((role) => role.is_active && role.rank < 100), [roles]);
+  const manageableRoles = useMemo(() => roles.filter((role) => role.is_active && (isSuperAdmin || role.rank < 100)), [isSuperAdmin, roles]);
   const assignedSet = useMemo(() => new Set(assignments), [assignments]);
   const availableAreas = areas.filter((area) => !assignedSet.has(area.id) && area.is_active);
   const currentAssignmentAreas = areas.filter((area) => assignedSet.has(area.id));
