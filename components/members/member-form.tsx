@@ -52,7 +52,7 @@ export function MemberForm({ mode, member, areas, roles }: MemberFormProps) {
           : await updateMember({ ...input, id: member!.id });
 
       if (!result.ok) {
-        if (result.type === "duplicate") {
+        if ("type" in result && result.type === "duplicate") {
           setDuplicates(result.duplicates);
         }
         setError(result.message);
