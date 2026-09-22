@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/authorization";
 
 type SearchBody = {
   search?: string;
@@ -12,19 +13,19 @@ type SearchBody = {
 };
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return NextResponse.json({ message: "Authentication required." }, { status: 401 });
 
   let body: SearchBody;
   try {
-    body = (await request.json()) as SearchBody;
+    body = await request.json() as SearchBody;
   } catch {
     return NextResponse.json({ message: "Invalid request." }, { status: 400 });
   }
 
   const page = Math.max(1, Math.floor(body.page ?? 1));
   const pageSize = Math.min(100, Math.max(1, Math.floor(body.page_size ?? 25)));
+  const supabase = await createClient();
 
   const { data, error } = await supabase.rpc("search_members", {
     p_search: (body.search ?? "").trim() || null,
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     p_page_size: pageSize,
   });
 
-  if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+  if (error) return NextResponse.json({ message: "Search could not be completed." }, { status: 400 });
 
   const rows = data ?? [];
   return NextResponse.json({
