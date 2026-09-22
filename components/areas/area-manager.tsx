@@ -5,17 +5,6 @@ import { createArea, setAreaActive, updateArea } from "@/app/dashboard/areas/act
 
 type Area = { id: string; parent_id: string | null; name: string; level: string; is_active: boolean };
 
-function buildChildren(areas: Area[]) {
-  const map = new Map<string | null, Area[]>();
-  for (const area of areas) {
-    const list = map.get(area.parent_id) ?? [];
-    list.push(area);
-    map.set(area.parent_id, list);
-  }
-  for (const list of map.values()) list.sort((a, b) => a.name.localeCompare(b.name));
-  return map;
-}
-
 function Tree({ areas, parentId, level, onEdit }: { areas: Area[]; parentId: string | null; level: number; onEdit: (area: Area) => void }) {
   const children = areas.filter((area) => area.parent_id === parentId).sort((a, b) => a.name.localeCompare(b.name));
   if (!children.length) return null;
