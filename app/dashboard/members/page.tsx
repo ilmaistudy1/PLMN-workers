@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { requireAuthenticatedUser } from "@/lib/auth/authorization";
+import { getCurrentUserRoles, requireAuthenticatedUser } from "@/lib/auth/authorization";
 import { MemberSearch } from "@/components/members/member-search";
 
 export default async function MembersPage() {
   await requireAuthenticatedUser();
+  const roles = await getCurrentUserRoles();
+  const canManage = roles.some((role) => ["super_admin", "admin", "area_manager", "data_entry"].includes(role));
   const supabase = await createClient();
 
-  const [{ data: areas }, { data: roles }, { data: initialRows }] = await Promise.all([
+  const [{ data: areas }, { data: memberRoles }, { data: initialRows }] = await Promise.all([
     supabase.from("areas").select("id,parent_id,name,level,is_active").order("level").order("name"),
     supabase.from("member_roles").select("id,name,is_active").order("name"),
     supabase.rpc("search_members", {
@@ -32,14 +34,15 @@ export default async function MembersPage() {
           <h1 className="mt-1 text-2xl font-bold text-slate-950">Members</h1>
           <p className="mt-1 text-sm text-slate-500">Search, review and manage members within your authorized area.</p>
         </div>
-        <Link href="/dashboard/members/new" className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Add Member</Link>
+        {canManage && <Link href="/dashboard/members/new" className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Add Member</Link>}
       </div>
 
       <MemberSearch
         areas={areas ?? []}
-        roles={roles ?? []}
+        roles={memberRoles ?? []}
         initialRows={rows}
         initialTotal={total}
+        canManage={canManage}
       />
     </section>
   );
