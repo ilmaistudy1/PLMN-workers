@@ -40,3 +40,24 @@ Database schema/RLS, role permissions, worker/supporter CRUD, search/filter/impo
 - Verified area hierarchy cycle protection with a transactional test; no test data remains.
 - No Auth users existed when the security foundation was applied, so no fake user/admin account was created. First-admin promotion instructions are in supabase/seed.sql.
 - npm lint/typecheck/build were not executable in the GitHub connector runtime; CI/local scripts remain available for execution in a Node environment.
+
+
+## Prompt 3 implementation
+- Added PostgreSQL-backed member search with pagination, filters, hierarchical area scoping, and indexed name/phone matching.
+- Added digit-only generated phone helper columns while preserving the original phone inputs.
+- Added duplicate warnings for likely matches by phone or exact name+area; records are never auto-merged.
+- Added complete member CRUD workflow: list, add, edit, details, inactive/archive, and restore.
+- Added authorized area hierarchy management with safe deactivation checks and cycle protection.
+- Added authorized member-role classification management, separate from application login roles.
+- Added an authorization-aware dashboard with total members, incomplete records, area distribution, role distribution, and recent members.
+- Added mobile-responsive CRM navigation and inline/skeleton/confirmation feedback patterns.
+- Sensitive phone/member data is not placed in URLs; member routes use only an opaque record UUID.
+- Added search/dashboard RPC privilege hardening and RLS performance cleanup.
+- Supabase security advisor is now clean. Performance advisor only reports currently-unused indexes because the new database has no member/area data yet.
+
+## Prompt 3 database verification
+- search_members returns no rows without an authorized user context.
+- get_member_dashboard_stats returns zeroed aggregates on the empty database.
+- Anonymous execute privileges for both application RPCs are disabled; authenticated execute is enabled.
+- All application tables remain RLS-protected.
+- GitHub Actions verification run is active with lint/typecheck/build configured; previous CI failure was caused by an npm cache requiring a nonexistent lockfile, and the workflow was corrected to install without cache/lockfile requirements.
