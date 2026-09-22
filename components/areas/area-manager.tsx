@@ -29,7 +29,7 @@ function Tree({ areas, parentId, level, onEdit }: { areas: Area[]; parentId: str
 }
 
 export function AreaManager({ initialAreas }: { initialAreas: Area[] }) {
-  const [areas, setAreas] = useState(initialAreas);
+  const [areas] = useState(initialAreas);
   const [editing, setEditing] = useState<Area | null>(null);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
