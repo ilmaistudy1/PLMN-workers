@@ -27,7 +27,7 @@ export default async function DashboardPage() {
         <div>
           <nav className="text-xs text-slate-500">Dashboard</nav>
           <h1 className="mt-1 text-2xl font-bold text-slate-950">Operations overview</h1>
-          <p className="mt-1 text-sm text-slate-500">All statistics below respect the current user's database authorization scope.</p>
+          <p className="mt-1 text-sm text-slate-500">All statistics below respect the current user&apos;s database authorization scope.</p>
         </div>
         <Link href="/dashboard/members/new" className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Add Member</Link>
       </div>
