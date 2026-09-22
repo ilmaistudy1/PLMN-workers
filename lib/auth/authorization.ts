@@ -14,6 +14,14 @@ export async function getCurrentUser() {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("account_status")
+    .eq("id", data.user.id)
+    .maybeSingle();
+
+  if (profile?.account_status === "disabled") return null;
   return data.user;
 }
 
@@ -29,10 +37,12 @@ export async function getCurrentUserRoles(): Promise<AppRole[]> {
 
   return (data ?? [])
     .map((row) => {
-      const roles = row.roles as unknown as { code?: string } | null;
-      return roles?.code;
+      const role = row.roles as unknown as { code?: string } | null;
+      return role?.code;
     })
-    .filter((code): code is AppRole => typeof code === "string" && APP_ROLES.has(code as AppRole));
+    .filter((code): code is AppRole =>
+      typeof code === "string" && APP_ROLES.has(code as AppRole),
+    );
 }
 
 export async function requireAuthenticatedUser() {
