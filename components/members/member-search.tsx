@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Area = { id: string; parent_id: string | null; name: string; level: string; is_active: boolean };
 type Role = { id: string; name: string; is_active: boolean };
@@ -99,7 +99,7 @@ export function MemberSearch({
 
   const selectedArea = localArea || tehsil || district || province;
 
-  async function runSearch(nextPage: number) {
+  const runSearch = useCallback(async (nextPage: number) => {
     setLoading(true);
     try {
       const response = await fetch("/api/members/search", {
@@ -129,14 +129,14 @@ export function MemberSearch({
     } finally {
       setLoading(false);
     }
-  }
+  }, [search, selectedArea, role, status]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void runSearch(1);
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [search, selectedArea, role, status]);
+  }, [runSearch]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
