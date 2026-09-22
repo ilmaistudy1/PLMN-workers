@@ -47,8 +47,12 @@ export async function setUserAccountStatus(userId: string, status: AccountStatus
     if (isSuperAdmin) {
       const { data: superRole } = await supabase.from("roles").select("id").eq("code", "super_admin").eq("is_active", true).maybeSingle();
       if (superRole?.id) {
-        const { count } = await supabase.from("user_roles").select("user_id", { count: "exact", head: true }).eq("role_id", superRole.id);
-        if ((count ?? 0) <= 1) return { ok: false, message: "Keep at least one active super admin account." };
+        const { data: superAdminRows } = await supabase.from("user_roles").select("user_id").eq("role_id", superRole.id);
+        const superAdminIds = (superAdminRows ?? []).map((item) => item.user_id);
+        const { data: activeSuperAdminProfiles } = superAdminIds.length
+          ? await supabase.from("profiles").select("id").in("id", superAdminIds).eq("account_status", "active")
+          : { data: [] };
+        if ((activeSuperAdminProfiles ?? []).length <= 1) return { ok: false, message: "Keep at least one active super admin account." };
       }
     }
   }
