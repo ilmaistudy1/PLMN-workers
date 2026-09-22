@@ -27,3 +27,16 @@ Repository was empty before implementation. Files were created in Git. The GitHu
 
 ## Remaining
 Database schema/RLS, role permissions, worker/supporter CRUD, search/filter/import/export, admin workflows, tests and CI execution.
+
+
+## Prompt 2 verification
+- Connected Supabase project: PLMN project (wjdagqskemppnlomsskl).
+- Migration applied successfully to the connected project.
+- Created profiles, roles, user_roles, user_area_assignments, areas, member_roles, members, and audit_logs.
+- RLS is enabled on all eight application tables; policy counts verified as areas 4, audit_logs 1, member_roles 2, members 4, profiles 2, roles 2, user_area_assignments 4, user_roles 4.
+- Seeded five extensible application roles: super_admin, admin, area_manager, data_entry, viewer.
+- Added private authorization helpers, recursive area-scope checks, hierarchy cycle protection, audit triggers, and server-side authorization helpers in lib/auth/authorization.ts.
+- Verified anonymous database table privileges do not allow SELECT on members or areas, while authenticated has the required table privilege subject to RLS.
+- Verified area hierarchy cycle protection with a transactional test; no test data remains.
+- No Auth users existed when the security foundation was applied, so no fake user/admin account was created. First-admin promotion instructions are in supabase/seed.sql.
+- npm lint/typecheck/build were not executable in the GitHub connector runtime; CI/local scripts remain available for execution in a Node environment.
