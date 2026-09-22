@@ -1,7 +1,7 @@
 # Project Status
 
 ## Stage
-Prompt 1 — Foundation, App Bootstrap & Architecture
+Prompt 4 — Admin Experience, Permissions, Audit Logs & Production UX
 
 ## Implemented
 - Next.js App Router TypeScript shell
@@ -73,3 +73,41 @@ Database schema/RLS, role permissions, worker/supporter CRUD, search/filter/impo
 - Supabase performance advisor: only INFO-level currently-unused-index notices remain; this is expected on an empty database and does not indicate a correctness or security issue.
 - The connected PLMN Supabase project contains no application users or member records yet, so no fake people or phone numbers were introduced.
 - Final code preserves Prompt 2 RLS/database authorization and keeps search/dashboard RPCs restricted to authenticated users.
+
+
+## Prompt 4 implementation
+- Added admin-only Users management with account name/email, application role, assigned areas, status, created date, and account detail management.
+- Added server-side role authority checks so administrators cannot promote themselves or manage equal/higher-authority accounts; application role replacement is atomic and database-authorized.
+- Added area assignment add/remove controls with database-backed scope enforcement.
+- Added application access disable/restore through profiles.account_status; disabled accounts are blocked by both server authorization and RLS.
+- Made navigation and member controls permission-aware; viewer/data-entry/area-manager users do not see admin-only controls, and protected routes/actions still enforce authorization server-side.
+- Added professional Audit Log page with actor/action/entity/date filters, affected-record links, area context and redacted operational metadata.
+- Added audit triggers for member, area, member-role, application-role, area-assignment and account-status changes without passwords, tokens, phone numbers or addresses.
+- Improved dashboard with lightweight responsive area/role distributions, recent activity, recently added members and quick actions.
+- Improved member search with debounced input, keyboard navigation, result highlighting, empty/loading states, result summaries and permission-aware actions.
+- Strengthened member data quality validation for names, phones, areas, member roles, duplicates and inactive references.
+- Added production security headers, private/no-store headers for dashboard/API routes, dashboard noindex metadata, and robots rules disallowing private application paths.
+- Added SECURITY.md with authorization model, secrets policy, data protection and deployment checklist.
+- Completed security review across protected pages, Server Actions and member search Route Handler. No service-role/secret-key references were found in repository code.
+- Removed old unauthenticated test audit rows from the database after verification.
+
+## Prompt 4 database/security verification
+- Supabase security advisor: zero findings.
+- Supabase private authorization helpers: authenticated execution enabled only where required; anonymous execution disabled.
+- public.set_user_application_role: authenticated execution only; anonymous execution disabled.
+- Simulated unauthorised authenticated request returned zero protected members/profiles/user_roles/audit rows.
+- RLS remains enabled across all application tables.
+- Private application routes use noindex/no-follow/noarchive and no-store response headers.
+- Database performance advisor reports only INFO-level currently-unused indexes; the connected application database has no users or member records yet, so these indexes have not accumulated usage.
+- No active application users or member records currently exist in the connected project; first-admin setup remains the deployment prerequisite documented in supabase/seed.sql.
+
+## Prompt 4 final CI verification
+- GitHub Actions run 66 completed successfully on the final implementation commit.
+- npm install: success.
+- npm run lint: success.
+- npm run typecheck: success.
+- npm run build: success.
+
+## Prompt 4 remaining
+- Production deployment still requires creating the first trusted Auth user and assigning the seeded super_admin role as documented in supabase/seed.sql.
+- Before going live, verify Supabase Auth redirect/session configuration and review the initial area/user assignments.
