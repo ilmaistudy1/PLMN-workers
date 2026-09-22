@@ -258,6 +258,8 @@ grant execute on function public.set_user_application_role(uuid, uuid) to authen
 revoke update on public.profiles from authenticated;
 grant update (full_name, account_status) on public.profiles to authenticated;
 
+revoke all on all functions in schema private from public, anon, authenticated;
+
 grant usage on schema private to authenticated;
 grant execute on function
   private.user_account_is_active(uuid),
