@@ -2,6 +2,14 @@ import { createClient } from "@/lib/supabase/server";
 
 export type AppRole = "super_admin" | "admin" | "area_manager" | "data_entry" | "viewer";
 
+const APP_ROLES = new Set<AppRole>([
+  "super_admin",
+  "admin",
+  "area_manager",
+  "data_entry",
+  "viewer",
+]);
+
 export async function getCurrentUser() {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
@@ -20,10 +28,11 @@ export async function getCurrentUserRoles(): Promise<AppRole[]> {
     .eq("user_id", user.id);
 
   return (data ?? [])
-    .map((row) => (row.roles as unknown as { code: string } | null)?.code)
-    .filter((code): code is AppRole =>
-      ["super_admin", "admin", "area_manager", "data_entry", "viewer"].includes(code)
-    );
+    .map((row) => {
+      const roles = row.roles as unknown as { code?: string } | null;
+      return roles?.code;
+    })
+    .filter((code): code is AppRole => typeof code === "string" && APP_ROLES.has(code as AppRole));
 }
 
 export async function requireAuthenticatedUser() {

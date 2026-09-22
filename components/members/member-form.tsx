@@ -23,6 +23,25 @@ type MemberFormProps = {
   roles: RoleOption[];
 };
 
+type DuplicateResult = {
+  ok: false;
+  type: "duplicate";
+  message: string;
+  duplicates: Array<{ id: string; full_name: string; primary_phone: string | null; area_id: string }>;
+};
+
+function isDuplicateResult(result: unknown): result is DuplicateResult {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    "ok" in result &&
+    "type" in result &&
+    "duplicates" in result &&
+    (result as { ok?: unknown }).ok === false &&
+    (result as { type?: unknown }).type === "duplicate"
+  );
+}
+
 export function MemberForm({ mode, member, areas, roles }: MemberFormProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -52,7 +71,7 @@ export function MemberForm({ mode, member, areas, roles }: MemberFormProps) {
           : await updateMember({ ...input, id: member!.id });
 
       if (!result.ok) {
-        if ("type" in result && result.type === "duplicate") {
+        if (isDuplicateResult(result)) {
           setDuplicates(result.duplicates);
         }
         setError(result.message);
