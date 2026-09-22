@@ -1,0 +1,24 @@
+-- PLMN Workers seed/setup notes.
+-- Default application roles are inserted by the foundation migration.
+-- No fake real people or phone numbers are inserted here.
+--
+-- Optional sample hierarchy: uncomment and customize only in a non-production
+-- environment. The hierarchy is intentionally data-driven; level values are
+-- labels, not application logic.
+--
+-- insert into public.areas (name, level) values ('Pakistan', 'country');
+-- insert into public.areas (name, level, parent_id)
+-- select 'Punjab', 'province', id from public.areas where name = 'Pakistan';
+--
+-- First-admin promotion:
+-- 1. Create the first user through Supabase Auth / your trusted admin setup.
+-- 2. Copy that user's UUID from Authentication > Users.
+-- 3. Assign the seeded super_admin role:
+--
+-- insert into public.user_roles (user_id, role_id)
+-- select '<AUTH_USER_UUID>', id
+-- from public.roles
+-- where code = 'super_admin';
+--
+-- Replace <AUTH_USER_UUID> with the real Auth user UUID. Do not use user_metadata
+-- for authorization and do not put service-role keys in application code.
