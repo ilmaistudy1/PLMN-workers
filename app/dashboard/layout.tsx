@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getCurrentUserRoles, requireAuthenticatedUser } from "@/lib/auth/authorization";
 import { Sidebar } from "@/components/layout/sidebar";
