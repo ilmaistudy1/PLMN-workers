@@ -21,7 +21,7 @@ export async function getCurrentUser() {
     .eq("id", data.user.id)
     .maybeSingle();
 
-  if (profile?.account_status === "disabled") return null;
+  if (!profile || profile.account_status !== "active") return null;
   return data.user;
 }
 
