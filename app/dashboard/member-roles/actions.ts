@@ -16,7 +16,7 @@ export async function createMemberRole(input: { name: string; description: strin
     created_by: user.id,
   });
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: "Member role could not be saved. Refresh and try again." };
   revalidatePath("/dashboard/member-roles");
   revalidatePath("/dashboard/members");
   return { ok: true, message: "Member role created." };
@@ -37,7 +37,7 @@ export async function updateMemberRole(input: { id: string; name: string; descri
     })
     .eq("id", input.id);
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: "Member role could not be updated. Refresh and try again." };
   revalidatePath("/dashboard/member-roles");
   revalidatePath("/dashboard/members");
   return { ok: true, message: "Member role updated." };
