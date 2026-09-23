@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Area = { id: string; parent_id: string | null; name: string; level: string; is_active: boolean };
@@ -84,6 +84,9 @@ export function MemberSearch({
   const [page, setPage] = useState(1);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [loading, setLoading] = useState(false);
+  const [requestError, setRequestError] = useState("");
+  const firstRender = useRef(true);
+  const controllerRef = useRef<AbortController | null>(null);
   const pageSize = 25;
 
   const provinceOptions = useMemo(() => areas.filter((area) => levelMatch(area, ["province", "region"]) && area.is_active), [areas]);
@@ -93,29 +96,48 @@ export function MemberSearch({
   const selectedArea = localArea || tehsil || district || province;
 
   const runSearch = useCallback(async (nextPage: number) => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
     setLoading(true);
+    setRequestError("");
     try {
       const response = await fetch("/api/members/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({ search, area_id: selectedArea || null, member_role_id: role || null, status: status || null, page: nextPage, page_size: pageSize }),
       });
-      const payload = await response.json() as { rows?: Row[]; total?: number };
-      if (response.ok) {
-        setRows(payload.rows ?? []);
-        setTotal(Number(payload.total ?? 0));
-        setPage(nextPage);
-        setActiveIndex(-1);
+      const payload = await response.json() as { rows?: Row[]; total?: number; message?: string };
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.replace("/login");
+          return;
+        }
+        throw new Error(payload.message || "Search could not be completed.");
       }
+      setRows(payload.rows ?? []);
+      setTotal(Number(payload.total ?? 0));
+      setPage(nextPage);
+      setActiveIndex(-1);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setRequestError("Search could not be completed. Please refresh and try again.");
     } finally {
-      setLoading(false);
+      if (controllerRef.current === controller) setLoading(false);
     }
-  }, [search, selectedArea, role, status]);
+  }, [router, search, selectedArea, role, status]);
 
   useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
     const timer = window.setTimeout(() => void runSearch(1), 350);
     return () => window.clearTimeout(timer);
   }, [runSearch]);
+
+  useEffect(() => () => controllerRef.current?.abort(), []);
 
   function handleSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key === "ArrowDown" && rows.length) {
@@ -151,6 +173,8 @@ export function MemberSearch({
         <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 rounded-lg border border-slate-300 px-3 text-sm"><option value="">All status</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="archived">Archived</option></select>
       </div>
     </div>
+
+    {requestError && <div role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{requestError}</div>}
 
     <div className="flex flex-wrap items-center justify-between gap-3">
       <p className="text-sm text-slate-500">{total === 0 ? "No matching members" : "Showing " + firstResult.toLocaleString() + "–" + lastResult.toLocaleString() + " of " + total.toLocaleString()}</p>
