@@ -11,7 +11,7 @@ export async function setUserApplicationRole(userId: string, roleId: string) {
   if (!userId || !roleId || user.id === userId) return { ok: false, message: "That account cannot be changed from this screen." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_user_application_role", { p_user_id: userId, p_role_id: roleId });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: "Application role could not be updated. Refresh and try again." };
   revalidatePath("/dashboard/users"); revalidatePath("/dashboard/users/" + userId); revalidatePath("/dashboard/audit");
   return { ok: true, message: "Application role updated." };
 }
@@ -21,7 +21,7 @@ export async function assignUserArea(userId: string, areaId: string) {
   if (!userId || !areaId || user.id === userId) return { ok: false, message: "That account cannot be changed from this screen." };
   const supabase = await createClient();
   const { error } = await supabase.from("user_area_assignments").insert({ user_id: userId, area_id: areaId });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: "Area assignment could not be added. Refresh and try again." };
   revalidatePath("/dashboard/users"); revalidatePath("/dashboard/users/" + userId); revalidatePath("/dashboard/audit");
   return { ok: true, message: "Area assignment added." };
 }
@@ -31,7 +31,7 @@ export async function removeUserArea(userId: string, areaId: string) {
   if (!userId || !areaId || user.id === userId) return { ok: false, message: "That account cannot be changed from this screen." };
   const supabase = await createClient();
   const { error } = await supabase.from("user_area_assignments").delete().eq("user_id", userId).eq("area_id", areaId);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: "Area assignment could not be removed. Refresh and try again." };
   revalidatePath("/dashboard/users"); revalidatePath("/dashboard/users/" + userId); revalidatePath("/dashboard/audit");
   return { ok: true, message: "Area assignment removed." };
 }
@@ -58,7 +58,7 @@ export async function setUserAccountStatus(userId: string, status: AccountStatus
   }
 
   const { error } = await supabase.from("profiles").update({ account_status: status }).eq("id", userId);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: "Application access status could not be changed. Refresh and try again." };
   revalidatePath("/dashboard/users"); revalidatePath("/dashboard/users/" + userId); revalidatePath("/dashboard/audit");
   return { ok: true, message: status === "disabled" ? "Application access disabled." : "Application access restored." };
 }
