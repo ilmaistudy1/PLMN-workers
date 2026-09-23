@@ -120,7 +120,7 @@ export async function createMember(input: {
     created_by: user.id,
   });
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: "Member could not be saved. Please review the fields and try again." };
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/members");
@@ -199,7 +199,7 @@ export async function updateMember(input: {
     })
     .eq("id", input.id);
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: "Member could not be updated. Please review the fields and try again." };
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/members");
@@ -214,7 +214,7 @@ export async function setMemberStatus(id: string, status: "active" | "inactive" 
   if (!existing) return { ok: false, message: "Member record is unavailable or outside your scope." };
 
   const { error } = await supabase.from("members").update({ status }).eq("id", id);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: "Member status could not be changed. Refresh the record and try again." };
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/members");
