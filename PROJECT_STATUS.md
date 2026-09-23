@@ -1,113 +1,197 @@
 # Project Status
 
 ## Stage
-Prompt 4 — Admin Experience, Permissions, Audit Logs & Production UX
+Prompt 5 — Final QA, Hardening & Vercel Deployment Readiness
 
-## Implemented
-- Next.js App Router TypeScript shell
-- Tailwind CSS setup
-- Supabase browser/server clients with @supabase/ssr
-- Cookie-based SSR session refresh via root proxy
-- Protected dashboard layout
-- Email/password login and logout
-- Responsive sidebar/top navigation foundation
-- Reusable Button primitive
-- Loading, error and not-found states
-- Public environment validation and .env.example
-- Architecture documentation
-- No anonymous access to dashboard/worker area
-- No service-role/secret key in browser code
-- No business schema in this stage
+## Final completion state
+The repository is in final production-handoff shape for a fresh Supabase environment and Vercel deployment. Working functionality from Prompts 1–4 was preserved; Prompt 5 focused on QA, authorization hardening, reliability, least-privilege grants, deployment determinism, documentation, and final verification.
 
-## Architecture decisions
-Use App Router and @supabase/ssr rather than deprecated Auth Helpers. Browser code receives only the publishable key. Server-side authorization is performed from verified auth claims. Business schema and RLS are deferred to Prompt 2.
+## Implemented application features
 
-## Verification
-Repository was empty before implementation. Files were created in Git. The GitHub connector environment does not provide a local Node/npm runtime, so npm lint/typecheck/build could not be executed here. Scripts are included for local/CI verification.
+### Authentication
+- Email/password Supabase Auth login and logout.
+- Cookie-based SSR session handling with `@supabase/ssr`.
+- Root session-refresh proxy.
+- Dashboard requires both a valid Auth user and an active `public.profiles` application account.
+- Disabled application accounts are redirected back to login.
+- Protected routes fail closed without exposing database or authorization internals.
+- Login does not expose raw provider error text.
 
-## Remaining
-Database schema/RLS, role permissions, worker/supporter CRUD, search/filter/import/export, admin workflows, tests and CI execution.
+### Member management
+- Paginated server-side member search with text, status, role and hierarchical area filters.
+- Debounced search with keyboard navigation and highlighting.
+- Request cancellation prevents stale search responses from overwriting newer results.
+- Member create/edit/view workflow.
+- Duplicate detection with explicit confirmation; no automatic merging.
+- Active/inactive/archive/restore lifecycle.
+- Phone validation and normalized duplicate/search helpers.
+- Area/member-role reference validation.
+- Existing stale area/member-role references remain reviewable without allowing unauthorized scope changes.
+- Member private fields are never placed in URLs.
 
+### Area and member-role management
+- Parent/child area hierarchy.
+- Cycle protection.
+- Area create/edit/deactivate/reactivate controls.
+- Areas cannot be deactivated while active children or non-archived members still reference them.
+- Active child areas cannot be created or moved beneath inactive parents.
+- Member-role classification management is separate from application login roles.
 
-## Prompt 2 verification
-- Connected Supabase project: PLMN project (wjdagqskemppnlomsskl).
-- Migration applied successfully to the connected project.
-- Created profiles, roles, user_roles, user_area_assignments, areas, member_roles, members, and audit_logs.
-- RLS is enabled on all eight application tables; policy counts verified as areas 4, audit_logs 1, member_roles 2, members 4, profiles 2, roles 2, user_area_assignments 4, user_roles 4.
-- Seeded five extensible application roles: super_admin, admin, area_manager, data_entry, viewer.
-- Added private authorization helpers, recursive area-scope checks, hierarchy cycle protection, audit triggers, and server-side authorization helpers in lib/auth/authorization.ts.
-- Verified anonymous database table privileges do not allow SELECT on members or areas, while authenticated has the required table privilege subject to RLS.
-- Verified area hierarchy cycle protection with a transactional test; no test data remains.
-- No Auth users existed when the security foundation was applied, so no fake user/admin account was created. First-admin promotion instructions are in supabase/seed.sql.
-- npm lint/typecheck/build were not executable in the GitHub connector runtime; CI/local scripts remain available for execution in a Node environment.
+### User administration
+- Admin-only Users section.
+- Account name/email, active application role, assigned areas, status and timestamps.
+- Atomic application-role replacement through a database-authorized function.
+- Authority hierarchy prevents equal/higher-role management by lower administrators.
+- Self role/status changes are blocked.
+- Area assignment add/remove is RLS-protected.
+- At least one active super-admin is preserved when disabling accounts.
 
+### Audit
+- Operational audit logging for member, area, member-role, user-role, area-assignment and account-status changes.
+- Administrative audit page with actor/action/entity/date filters.
+- Audit visibility is scope-restricted.
+- Sensitive fields such as passwords, tokens, phones and addresses are not intentionally logged.
 
-## Prompt 3 implementation
-- Added PostgreSQL-backed member search with pagination, filters, hierarchical area scoping, and indexed name/phone matching.
-- Added digit-only generated phone helper columns while preserving the original phone inputs.
-- Added duplicate warnings for likely matches by phone or exact name+area; records are never auto-merged.
-- Added complete member CRUD workflow: list, add, edit, details, inactive/archive, and restore.
-- Added authorized area hierarchy management with safe deactivation checks and cycle protection.
-- Added authorized member-role classification management, separate from application login roles.
-- Added an authorization-aware dashboard with total members, incomplete records, area distribution, role distribution, and recent members.
-- Added mobile-responsive CRM navigation and inline/skeleton/confirmation feedback patterns.
-- Sensitive phone/member data is not placed in URLs; member routes use only an opaque record UUID.
-- Added search/dashboard RPC privilege hardening and RLS performance cleanup.
-- Supabase security advisor is now clean. Performance advisor only reports currently-unused indexes because the new database has no member/area data yet.
+### Dashboard and UX
+- Member/area/role summaries and recent activity.
+- Quick actions and recent members.
+- Loading, empty, no-results, retry/error and confirmation states.
+- Responsive navigation and mobile-friendly tables/forms.
+- Private dashboard/API routes use no-store/noindex headers.
+- Robots rules disallow private dashboard/API crawling.
 
-## Prompt 3 database verification
-- search_members returns no rows without an authorized user context.
-- get_member_dashboard_stats returns zeroed aggregates on the empty database.
-- Anonymous execute privileges for both application RPCs are disabled; authenticated execute is enabled.
-- All application tables remain RLS-protected.
-- GitHub Actions verification run is active with lint/typecheck/build configured; previous CI failure was caused by an npm cache requiring a nonexistent lockfile, and the workflow was corrected to install without cache/lockfile requirements.
+## Database tables
 
+The application uses eight public tables, all with RLS enabled:
 
-## Prompt 3 final verification
-- Final GitHub Actions verification run 37 (`8b38b255e2285464f801a8fb056850d618a7b2ad`) completed successfully.
-- npm install: success.
-- npm run lint: success.
-- npm run typecheck: success.
-- npm run build: success.
-- Supabase security advisor: no findings.
-- Supabase performance advisor: only INFO-level currently-unused-index notices remain; this is expected on an empty database and does not indicate a correctness or security issue.
-- The connected PLMN Supabase project contains no application users or member records yet, so no fake people or phone numbers were introduced.
-- Final code preserves Prompt 2 RLS/database authorization and keeps search/dashboard RPCs restricted to authenticated users.
+1. `profiles`
+2. `roles`
+3. `user_roles`
+4. `user_area_assignments`
+5. `areas`
+6. `member_roles`
+7. `members`
+8. `audit_logs`
 
+The connected PLMN Supabase project currently has zero application users and zero member rows. No fake people, phone numbers or production records were created.
 
-## Prompt 4 implementation
-- Added admin-only Users management with account name/email, application role, assigned areas, status, created date, and account detail management.
-- Added server-side role authority checks so administrators cannot promote themselves or manage equal/higher-authority accounts; application role replacement is atomic and database-authorized.
-- Added area assignment add/remove controls with database-backed scope enforcement.
-- Added application access disable/restore through profiles.account_status; disabled accounts are blocked by both server authorization and RLS.
-- Made navigation and member controls permission-aware; viewer/data-entry/area-manager users do not see admin-only controls, and protected routes/actions still enforce authorization server-side.
-- Added professional Audit Log page with actor/action/entity/date filters, affected-record links, area context and redacted operational metadata.
-- Added audit triggers for member, area, member-role, application-role, area-assignment and account-status changes without passwords, tokens, phone numbers or addresses.
-- Improved dashboard with lightweight responsive area/role distributions, recent activity, recently added members and quick actions.
-- Improved member search with debounced input, keyboard navigation, result highlighting, empty/loading states, result summaries and permission-aware actions.
-- Strengthened member data quality validation for names, phones, areas, member roles, duplicates and inactive references.
-- Added production security headers, private/no-store headers for dashboard/API routes, dashboard noindex metadata, and robots rules disallowing private application paths.
-- Added SECURITY.md with authorization model, secrets policy, data protection and deployment checklist.
-- Completed security review across protected pages, Server Actions and member search Route Handler. No service-role/secret-key references were found in repository code.
-- Removed old unauthenticated test audit rows from the database after verification.
+## Authorization model
 
-## Prompt 4 database/security verification
-- Supabase security advisor: zero findings.
-- Supabase private authorization helpers: authenticated execution enabled only where required; anonymous execution disabled.
-- public.set_user_application_role: authenticated execution only; anonymous execution disabled.
-- Simulated unauthorised authenticated request returned zero protected members/profiles/user_roles/audit rows.
-- RLS remains enabled across all application tables.
-- Private application routes use noindex/no-follow/noarchive and no-store response headers.
-- Database performance advisor reports only INFO-level currently-unused indexes; the connected application database has no users or member records yet, so these indexes have not accumulated usage.
-- No active application users or member records currently exist in the connected project; first-admin setup remains the deployment prerequisite documented in supabase/seed.sql.
+Application login roles are rank-based:
 
-## Prompt 4 final CI verification
-- GitHub Actions run 66 completed successfully on the final implementation commit.
-- npm install: success.
-- npm run lint: success.
-- npm run typecheck: success.
-- npm run build: success.
+- `super_admin` — rank 100
+- `admin` — rank 80
+- `area_manager` — rank 60
+- `data_entry` — rank 40
+- `viewer` — rank 20
 
-## Prompt 4 remaining
-- Production deployment still requires creating the first trusted Auth user and assigning the seeded super_admin role as documented in supabase/seed.sql.
-- Before going live, verify Supabase Auth redirect/session configuration and review the initial area/user assignments.
+Area assignments inherit to descendants. Server authorization controls protected pages/actions, while PostgreSQL RLS is the final row-level boundary.
+
+The final hardening also restricts authenticated Data API table grants to the operations the application actually needs. Anonymous access to application tables is revoked.
+
+## Important routes
+
+- `/` — safe entry redirect
+- `/login` — authentication
+- `/dashboard` — protected operations dashboard
+- `/dashboard/members` — member search
+- `/dashboard/members/new` — create member
+- `/dashboard/members/[id]` — member details
+- `/dashboard/members/[id]/edit` — edit member
+- `/dashboard/areas` — area hierarchy
+- `/dashboard/member-roles` — member classifications
+- `/dashboard/users` — admin user management
+- `/dashboard/users/[id]` — account management
+- `/dashboard/audit` — audit log
+- `/api/members/search` — authenticated member-search API
+
+## Environment variables
+
+Only these application variables are required:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+
+No service-role key, Supabase secret key, database password or Vercel token belongs in the repository.
+
+## Supabase migrations
+
+Repository migrations live in `supabase/migrations` and include the final hardening migration:
+
+- `20260922220000_plmn_workers_security_foundation.sql`
+- `20260922223000_member_search_dashboard.sql`
+- `20260922224500_fix_member_scope_precedence.sql`
+- `20260922230000_security_performance_cleanup.sql`
+- `20260922233000_admin_security_audit.sql`
+- `20260923103500_final_hardening.sql`
+
+Fresh environments can apply the repository migrations in order.
+
+The connected development PLMN database was iterated through the Supabase management connection; its remote migration history uses tool-generated version IDs that differ from the repository filenames. That existing database must have migration history reconciled before replaying repository migrations. The schema itself was verified after the final hardening SQL was applied directly.
+
+## RLS and database verification
+
+- All eight application tables report `rls_enabled = true`.
+- Public/anonymous table access is revoked.
+- Authenticated table grants are least-privilege for application usage.
+- Supabase Security Advisor: zero findings.
+- Performance Advisor: 23 INFO-level unused-index notices on the empty application dataset; indexes are intentionally retained for expected search/audit workloads.
+- Rollback-only synthetic RLS tests verified that:
+  - out-of-scope member rows are not readable,
+  - crafted cross-scope member updates do not modify protected records,
+  - viewer scope does not expose member/area data without an area assignment,
+  - application profile/role visibility remains restricted.
+- No QA fixture data remains in the connected database.
+
+## Performance/reliability hardening
+
+- Member search is paginated at the database RPC and never downloads the complete member dataset to the browser.
+- Dashboard statistics are served by one aggregate RPC.
+- Parallel database queries are used where appropriate.
+- Search requests are debounced and cancellable.
+- Mutation errors are mapped to safe user-facing messages instead of leaking database errors.
+- Stale/inactive-area and stale/member-role conditions are handled explicitly.
+- Unauthorized API calls return 401 without data.
+- Stale direct pages resolve through database scope instead of trusting client navigation.
+- No service-role/secret references were found in application code.
+
+## Verification commands
+
+GitHub Actions is the authoritative Node environment for the repository:
+
+```bash
+npm ci
+npm run lint
+npm run typecheck
+npm run build
+```
+
+No separate test framework is currently configured. Production verification therefore includes lint, TypeScript, Next.js production build, direct Supabase/RLS checks, Security Advisor review, repository secret scan, and GitHub tree/diff review.
+
+## Vercel deployment
+
+1. Import the GitHub repository into Vercel.
+2. Set `NEXT_PUBLIC_SUPABASE_URL`.
+3. Set `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+4. Keep the project root at the repository root.
+5. Use the normal Next.js build command `npm run build`.
+6. Vercel installs from the committed `package-lock.json`.
+7. Configure the production Site URL/redirect URLs in Supabase Auth.
+8. Create/verify the first active `super_admin` before operational use.
+
+No custom Vercel infrastructure is required.
+
+## First-admin handoff
+
+The connected database has no active application users by design. Create the first trusted Supabase Auth user, then assign the seeded `super_admin` role using the SQL template in `supabase/seed.sql`. Review the initial area hierarchy and user-area assignments before creating subordinate accounts.
+
+## Known limitations / deliberate boundaries
+
+- The project has no separate automated unit/integration test framework yet; CI covers lint, typecheck and production build, while database security is covered by direct RLS checks.
+- The connected development database has no real users or members, so full browser CRUD with real production identities must be completed after the first trusted Auth user is created.
+- The current production workflow intentionally requires migration-history reconciliation when moving the already-iterated connected database to repository-managed migration versions; fresh Supabase databases can use the repository migration sequence directly.
+- Unused-index notices are expected while the production tables are empty and should be reviewed again after real workloads exist.
+
+## Final handoff
+
+The repository has no known compile/import errors from the final CI pipeline, no intentional secret files, no service-role usage, and no public member-data route. The next operational step is first-admin creation plus Vercel/Supabase environment configuration.
