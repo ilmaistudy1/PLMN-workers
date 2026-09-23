@@ -1,3 +1,4 @@
+import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export type AppRole = "super_admin" | "admin" | "area_manager" | "data_entry" | "viewer";
@@ -47,16 +48,14 @@ export async function getCurrentUserRoles(): Promise<AppRole[]> {
 
 export async function requireAuthenticatedUser() {
   const user = await getCurrentUser();
-  if (!user) throw new Error("Authentication required");
+  if (!user) redirect("/login");
   return user;
 }
 
 export async function requireAnyRole(allowed: AppRole[]) {
   const user = await requireAuthenticatedUser();
   const roles = await getCurrentUserRoles();
-  if (!roles.some((role) => allowed.includes(role))) {
-    throw new Error("Insufficient permissions");
-  }
+  if (!roles.some((role) => allowed.includes(role))) notFound();
   return { user, roles };
 }
 
