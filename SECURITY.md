@@ -18,6 +18,16 @@ Area scope is stored in `public.user_area_assignments`. Descendant areas inherit
 
 Disabled application accounts are blocked by server authorization and database RLS. Disabling access does not delete the underlying Supabase Auth account.
 
+## Authentication/session handling
+
+- `@supabase/ssr` browser/server clients manage the Auth session in cookies.
+- The root proxy refreshes the session with Supabase Auth claims.
+- Protected dashboard routes require both an Auth user and an active application profile.
+- A disabled account is sent back to login rather than being allowed into the dashboard.
+- Insufficient-role dashboard routes return a non-descriptive not-found response.
+- Logout uses the browser Supabase client and returns to `/login`.
+- The login page does not expose raw Supabase authentication error text.
+
 ## Secrets and environment
 
 The current application requires only:
@@ -27,26 +37,70 @@ The current application requires only:
 
 No service-role/secret key is required by the current application. Never place a Supabase secret/service-role key in a `NEXT_PUBLIC_*` variable or client component.
 
+Repository hygiene excludes `.env.local` and other local-secret files through `.gitignore`.
+
 ## Data protection
 
-Authenticated member records are protected by RLS and are not intended for public indexing. Private dashboard/API routes return noindex/no-follow metadata and robots rules disallow crawling.
+Authenticated member records are protected by RLS and are not intended for public indexing. Private dashboard/API routes return noindex/no-follow/noarchive and no-store headers, and `app/robots.ts` disallows crawling of dashboard/API paths.
 
 The application does not intentionally log passwords, tokens, phone numbers, addresses, or complete member records. Audit metadata is limited to operational fields such as action, entity, role/area identifiers and account-status changes.
 
-## Administrative controls
+Member phone/address values are not placed in URLs. Record pages use opaque UUID identifiers.
 
-User role replacement is performed through an atomic database function with server-side and RLS authorization checks. Area assignment mutations are RLS-protected. Application-account disable/restore uses `profiles.account_status`; the Auth identity remains intact.
+## Database/RLS controls
 
-Audit logs are append-only from the application UI and restricted by administrative scope.
+All eight application tables are RLS-enabled.
+
+The final hardening grants are least-privilege for the application Data API:
+
+- `profiles`: SELECT plus UPDATE of `full_name` and `account_status`
+- `roles`: SELECT
+- `user_roles`: SELECT/INSERT/DELETE
+- `user_area_assignments`: SELECT/INSERT/DELETE
+- `areas`: SELECT/INSERT/UPDATE
+- `member_roles`: SELECT/INSERT/UPDATE
+- `members`: SELECT/INSERT/UPDATE
+- `audit_logs`: SELECT
+
+RLS policies additionally restrict rows and mutation conditions. There is no anonymous table access.
+
+Member updates use both old-row authorization and new-row `WITH CHECK` rules. Existing stale member-role references may remain editable, while assigning a new inactive member role is blocked.
+
+Area creation/moves cannot create active child areas beneath inactive parents.
+
+Administrative application-role replacement is done through an atomic `SECURITY INVOKER` database function with server-side authority checks.
+
+## Audit logging
+
+Audit triggers capture operational changes such as:
+
+- member create/update/delete
+- member area/role changes
+- area changes
+- member-role changes
+- user application-role changes
+- user area-assignment changes
+- account status changes
+
+Audit readers are scope-restricted. Sensitive fields such as passwords, tokens, phone numbers, addresses, and full member payloads are not intentionally logged.
+
+## Dependency/build security
+
+- Node.js 22+ is the local minimum; CI uses Node.js 24.
+- `package-lock.json` is committed and CI uses `npm ci`.
+- Do not add service-role/secret dependencies unless the security model is reviewed first.
+- Keep dependency upgrades deliberate and verify lint/typecheck/build after upgrades.
 
 ## Production checklist
 
 Before public deployment:
 
-- keep environment variables in the hosting platform;
+- keep environment variables in Vercel, not Git;
 - serve over HTTPS;
-- verify Supabase Auth redirect/session settings;
-- verify at least one active `super_admin` exists;
-- verify user-area assignments;
+- configure Supabase Auth Site URL/redirect URLs;
+- verify at least one active `super_admin`;
+- verify initial user-area assignments;
+- verify application roles are active and correctly assigned;
+- verify no secrets are committed;
 - review the latest `PROJECT_STATUS.md`;
 - keep dependency lockfiles and update dependencies through reviewed changes.
