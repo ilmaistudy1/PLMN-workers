@@ -330,27 +330,42 @@ export default function MobileApp() {
       updated_at: now,
     };
 
-    const nextPending: PendingChange[] = [
-      ...state.pending.filter((item) => item.member_id !== updated.id),
-      {
-        id: crypto.randomUUID(),
-        op: "update",
-        member_id: updated.id,
-        payload: {
-          full_name: updated.full_name,
-          primary_phone: updated.primary_phone,
-          alternate_phone: updated.alternate_phone,
-          address_details: updated.address_details,
-          area_id: updated.area_id,
-          member_role_id: updated.member_role_id,
-          status: updated.status,
-        },
-        base_updated_at: editing.updated_at,
-        created_at: now,
-        status: "pending",
-        error_message: null,
-      },
-    ];
+    const existingCreate = state.pending.find(
+      (item) => item.member_id === updated.id && item.op === "create",
+    );
+
+    const nextPending: PendingChange[] = existingCreate
+      ? state.pending.map((item) =>
+          item.id === existingCreate.id
+            ? {
+                ...item,
+                payload: updated,
+                status: "pending" as const,
+                error_message: null,
+              }
+            : item,
+        )
+      : [
+          ...state.pending.filter((item) => item.member_id !== updated.id),
+          {
+            id: crypto.randomUUID(),
+            op: "update",
+            member_id: updated.id,
+            payload: {
+              full_name: updated.full_name,
+              primary_phone: updated.primary_phone,
+              alternate_phone: updated.alternate_phone,
+              address_details: updated.address_details,
+              area_id: updated.area_id,
+              member_role_id: updated.member_role_id,
+              status: updated.status,
+            },
+            base_updated_at: editing.updated_at,
+            created_at: now,
+            status: "pending",
+            error_message: null,
+          },
+        ];
 
     const next: MobileState = {
       ...state,
@@ -370,28 +385,127 @@ export default function MobileApp() {
     setForm((value) => ({ ...value, status: "archived" }));
     const now = new Date().toISOString();
     const nextMember = { ...editing, status: "archived" as const, updated_at: now };
+    const existingCreate = state.pending.find(
+      (item) => item.member_id === editing.id && item.op === "create",
+    );
+
     const next: MobileState = {
       ...state,
       members: state.members.map((member) => member.id === editing.id ? nextMember : member),
-      pending: [
-        ...state.pending.filter((item) => item.member_id !== editing.id),
-        {
-          id: crypto.randomUUID(),
-          op: "update",
-          member_id: editing.id,
-          payload: { status: "archived" },
-          base_updated_at: editing.updated_at,
-          created_at: now,
-          status: "pending",
-          error_message: null,
-        },
-      ],
+      pending: existingCreate
+        ? state.pending.map((item) =>
+            item.id === existingCreate.id
+              ? {
+                  ...item,
+                  payload: nextMember,
+                  status: "pending" as const,
+                  error_message: null,
+                }
+              : item,
+          )
+        : [
+            ...state.pending.filter((item) => item.member_id !== editing.id),
+            {
+              id: crypto.randomUUID(),
+              op: "update",
+              member_id: editing.id,
+              payload: { status: "archived" },
+              base_updated_at: editing.updated_at,
+              created_at: now,
+              status: "pending",
+              error_message: null,
+            },
+          ],
     };
     await writeMobileState(next);
     setState(next);
     setShowForm(false);
     setMessage(online ? "Archived locally. Syncing…" : "Archived offline.");
     if (online) void doSync();
+  }
+
+  async function resolveConflict(change: PendingChange, useLocal: boolean) {
+    if (!change.error_message || change.status !== "conflict") return;
+    const member = state.members.find((item) => item.id === change.member_id);
+    if (!member) return;
+
+    if (!useLocal) {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("members")
+        .select("id,full_name,primary_phone,alternate_phone,address_details,area_id,member_role_id,status,created_at,updated_at")
+        .eq("id", change.member_id)
+        .maybeSingle();
+
+      if (error || !data) {
+        setMessage("The server version could not be loaded.");
+        return;
+      }
+
+      const area = state.areas.find((item) => item.id === data.area_id);
+      const role = state.roles.find((item) => item.id === data.member_role_id);
+      const serverMember: MobileMember = {
+        ...member,
+        ...data,
+        area_name: area?.name ?? member.area_name,
+        area_level: area?.level ?? member.area_level,
+        member_role_name: role?.name ?? member.member_role_name,
+        created_by: member.created_by,
+      };
+
+      const next = {
+        ...state,
+        members: state.members.map((item) => item.id === member.id ? serverMember : item),
+        pending: state.pending.filter((item) => item.id !== change.id),
+      };
+      await writeMobileState(next);
+      setState(next);
+      setMessage("Server version restored.");
+      return;
+    }
+
+    if (!navigator.onLine) {
+      setMessage("Connect to the internet before overwriting the server record.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Overwrite the current server record with your offline version? This keeps your local changes.",
+    );
+    if (!confirmed) return;
+
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("members")
+      .update(change.payload)
+      .eq("id", change.member_id)
+      .select("id,full_name,primary_phone,alternate_phone,address_details,area_id,member_role_id,status,created_at,updated_at")
+      .maybeSingle();
+
+    if (error || !data) {
+      setMessage("The server could not be overwritten. Refresh and try again.");
+      return;
+    }
+
+    const area = state.areas.find((item) => item.id === data.area_id);
+    const role = state.roles.find((item) => item.id === data.member_role_id);
+    const resolved: MobileMember = {
+      ...member,
+      ...data,
+      area_name: area?.name ?? member.area_name,
+      area_level: area?.level ?? member.area_level,
+      member_role_name: role?.name ?? member.member_role_name,
+      created_by: member.created_by,
+    };
+
+    const next = {
+      ...state,
+      members: state.members.map((item) => item.id === member.id ? resolved : item),
+      pending: state.pending.filter((item) => item.id !== change.id),
+    };
+    await writeMobileState(next);
+    setState(next);
+    setMessage("Your offline version replaced the server version.");
   }
 
   async function signOut() {
@@ -507,6 +621,24 @@ export default function MobileApp() {
                         </div>
                         {item.error_message && <span className="max-w-[55%] text-right text-xs text-red-600">{item.error_message}</span>}
                       </div>
+                      {item.status === "conflict" && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void resolveConflict(item, false)}
+                            className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700"
+                          >
+                            Use server version
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void resolveConflict(item, true)}
+                            className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
+                          >
+                            Keep my version
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
