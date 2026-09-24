@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   MobileMember,
   MobileState,
+  clearMobileState,
   normalizePhone,
   PendingChange,
   readMobileState,
@@ -523,6 +524,7 @@ export default function MobileApp() {
   async function signOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
+    await clearMobileState();
     router.replace("/login");
   }
 
