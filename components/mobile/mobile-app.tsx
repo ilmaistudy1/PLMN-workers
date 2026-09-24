@@ -2,9 +2,11 @@
 
 import {
   FormEvent,
+  useCallback,
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -17,6 +19,24 @@ import {
   writeMobileState,
 } from "@/lib/mobile/storage";
 import { syncMobileState } from "@/lib/mobile/sync";
+
+function subscribeOnline(callback: () => void) {
+  window.addEventListener("online", callback);
+  window.addEventListener("offline", callback);
+  return () => {
+    window.removeEventListener("online", callback);
+    window.removeEventListener("offline", callback);
+  };
+}
+
+function getOnlineSnapshot() {
+  return navigator.onLine;
+}
+
+function getOnlineServerSnapshot() {
+  return true;
+}
+
 
 type Tab = "members" | "sync";
 
@@ -106,7 +126,11 @@ export default function MobileApp() {
   });
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<Tab>("members");
-  const [online, setOnline] = useState(true);
+  const online = useSyncExternalStore(
+    subscribeOnline,
+    getOnlineSnapshot,
+    getOnlineServerSnapshot,
+  );
   const [syncing, setSyncing] = useState(true);
   const [message, setMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -136,12 +160,6 @@ export default function MobileApp() {
   }, [query, state.members]);
 
   useEffect(() => {
-    setOnline(navigator.onLine);
-    const onOnline = () => setOnline(true);
-    const onOffline = () => setOnline(false);
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
-
     const onInstall = (event: Event) => {
       event.preventDefault();
       setInstallEvent(event as Event & { prompt?: () => Promise<void>; userChoice?: Promise<{ outcome: string }> });
@@ -153,36 +171,30 @@ export default function MobileApp() {
     }
 
     void (async () => {
-      try {
-        const local = await readMobileState();
-        if (local.user_id) setState(local);
-      } finally {
-        await doSync();
-      }
+      const local = await readMobileState();
+      if (local.user_id) setState(local);
+      await doSync();
     })();
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible" && navigator.onLine) void doSync();
+      if (document.visibilityState === "visible" && navigator.onLine) {
+        void doSync();
+      }
     };
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
       window.removeEventListener("beforeinstallprompt", onInstall as EventListener);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, []);
+  }, [doSync]);
 
   useEffect(() => {
-    if (online) {
-      const handler = () => void doSync();
-      window.addEventListener("online", handler);
-      return () => window.removeEventListener("online", handler);
-    }
-  }, [online]);
+    if (!online) return;
+    void doSync();
+  }, [doSync, online]);
 
-  async function doSync() {
+  const doSync = useCallback(async () => {
     setSyncing(true);
     try {
       const result = await syncMobileState();
@@ -209,7 +221,7 @@ export default function MobileApp() {
     } finally {
       setSyncing(false);
     }
-  }
+  }, [router]);
 
   async function installApp() {
     if (!installEvent?.prompt) return;
