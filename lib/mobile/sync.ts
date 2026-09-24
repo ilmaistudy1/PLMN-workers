@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import {
+  clearMobileState,
   emptyMobileState,
   MobileMember,
   MobileState,
@@ -118,6 +119,24 @@ export async function syncMobileState() {
 
   if (!user) {
     return { state: await readMobileState(), pushed: 0, conflicts: 0, offline: false, authenticated: false };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("account_status")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile || profile.account_status !== "active") {
+    await clearMobileState();
+    return {
+      state: await emptyMobileState(),
+      pushed: 0,
+      conflicts: 0,
+      offline: false,
+      authenticated: false,
+      disabled: true,
+    };
   }
 
   let currentState = await readMobileState();
