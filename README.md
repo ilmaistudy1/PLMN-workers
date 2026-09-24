@@ -171,3 +171,22 @@ Re-run the repository migrations against a fresh environment, or reconcile the e
 - `npm run lint`, `npm run typecheck`, and `npm run build` pass.
 - No `.env.local`, Supabase secret/service-role key, database password, or Vercel token is committed.
 - Read `PROJECT_STATUS.md` and `SECURITY.md` before handoff.
+
+
+## Mobile offline app
+
+The repository now includes an installable mobile PWA at `/mobile`. It is distributed by URL, so it does not require Google Play Store publication.
+
+Mobile behavior:
+
+- sign in online once;
+- sync only the member/area/role data allowed by the authenticated user's RLS scope;
+- search and view cached members offline;
+- add, edit and archive members while offline;
+- keep offline writes in an encrypted IndexedDB cache;
+- automatically retry queued writes when connectivity returns;
+- detect concurrent server edits and offer server-version or local-version resolution;
+- clear the local offline database on sign out;
+- periodically revalidate the application account when online.
+
+For Android, share `https://plmn-workers.vercel.app/mobile` through WhatsApp, open it in Chrome, and use Chrome's install/Add to Home Screen option. The PWA shell and static assets are cached by `public/sw.js`; business data is stored locally in IndexedDB.
