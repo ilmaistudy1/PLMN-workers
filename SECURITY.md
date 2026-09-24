@@ -104,3 +104,14 @@ Before public deployment:
 - verify no secrets are committed;
 - review the latest `PROJECT_STATUS.md`;
 - keep dependency lockfiles and update dependencies through reviewed changes.
+
+
+## Mobile/offline controls
+
+The mobile client uses the same Supabase authentication and PostgreSQL RLS boundary as the web application. It downloads only records the current account can read.
+
+Offline data is stored in IndexedDB as an AES-GCM encrypted state blob. The encryption key is kept by the browser's origin storage; this protects the stored representation from casual inspection but is not a substitute for full-device encryption or a hardened mobile container.
+
+Offline writes are queued locally and replayed against Supabase when connectivity returns. Updates use the previously synced `updated_at` value as an optimistic-concurrency check. Conflicts are surfaced to the user rather than silently overwriting a newer server record.
+
+The mobile cache is cleared when the user signs out. When online, the mobile sync checks the current application profile status and clears the cache if the account is disabled.
