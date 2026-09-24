@@ -83,6 +83,12 @@ export default function LoginPage() {
             {loading ? "Signing in..." : "Sign in"}
           </Button>
         </form>
+        <a
+          href="/mobile"
+          className="mt-4 block text-center text-sm font-medium text-slate-600 underline underline-offset-4"
+        >
+          Open the mobile offline app
+        </a>
       </section>
     </main>
   );
