@@ -174,7 +174,7 @@ export async function syncMobileState() {
             ? {
                 ...item,
                 ...data,
-                created_by: data.created_by ?? user.id,
+                created_by: user.id,
                 area_name: area?.name ?? item.area_name,
                 area_level: area?.level ?? item.area_level,
                 member_role_name: role?.name ?? item.member_role_name,
