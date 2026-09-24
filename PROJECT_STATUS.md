@@ -195,3 +195,25 @@ The connected database has no active application users by design. Create the fir
 ## Final handoff
 
 The repository has no known compile/import errors from the final CI pipeline, no intentional secret files, no service-role usage, and no public member-data route. The next operational step is first-admin creation plus Vercel/Supabase environment configuration.
+
+
+## Mobile offline-first delivery
+
+The installable mobile route is now implemented at `/mobile`.
+
+Implemented:
+
+- installable web-app manifest;
+- service worker and offline app-shell caching;
+- encrypted IndexedDB local state;
+- scope-limited full member snapshot synchronization;
+- area and member-role caching;
+- offline member search;
+- offline member create/update/archive;
+- queued bidirectional sync;
+- optimistic-concurrency checks using `updated_at`;
+- conflict resolution between server and local versions;
+- online account-status revalidation;
+- local data cleared on sign out.
+
+Deliberate boundary: the mobile client never downloads application users outside the signed-in user's authorization scope, and it does not make private supporter data public. The mobile route is intended for authenticated internal use.
