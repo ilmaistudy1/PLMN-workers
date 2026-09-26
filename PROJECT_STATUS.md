@@ -73,7 +73,7 @@ The application uses eight public tables, all with RLS enabled:
 7. `members`
 8. `audit_logs`
 
-The connected PLMN Supabase project currently has zero application users and zero member rows. No fake people, phone numbers or production records were created.
+The connected PLMN Supabase project currently has one trusted Auth user and zero member rows. No fake people, member phone numbers or production member records were created.
 
 ## Authorization model
 
