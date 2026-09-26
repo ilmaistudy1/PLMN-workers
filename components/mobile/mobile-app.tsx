@@ -169,6 +169,10 @@ export default function MobileApp() {
         router.replace("/login?next=%2Fmobile");
         return;
       }
+      if ("needs_phone" in result && result.needs_phone) {
+        router.replace("/setup/phone");
+        return;
+      }
       if (result.offline) {
         setMessage("Offline mode: using the last synced data on this device.");
       } else if (result.conflicts) {
