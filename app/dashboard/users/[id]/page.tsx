@@ -11,7 +11,7 @@ export default async function UserDetailsPage({ params }: { params: Promise<{ id
   const supabase = await createClient();
 
   const [{ data: profile }, { data: roles }, { data: areas }, { data: assignments }, { data: roleRows }] = await Promise.all([
-    supabase.from("profiles").select("id,email,full_name,account_status,created_at,updated_at").eq("id", id).maybeSingle(),
+    supabase.from("profiles").select("id,email,phone,full_name,account_status,created_at,updated_at").eq("id", id).maybeSingle(),
     supabase.from("roles").select("id,code,name,rank,is_active").order("rank", { ascending: false }),
     supabase.from("areas").select("id,name,level,is_active").order("level").order("name"),
     supabase.from("user_area_assignments").select("user_id,area_id").eq("user_id", id),
