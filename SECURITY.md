@@ -122,3 +122,12 @@ The mobile cache is cleared when the user signs out. When online, the mobile syn
 Phone login uses a Supabase-managed SMS OTP. The login form does not create accounts; the user's phone must already belong to an authorized Supabase Auth account. The application mirrors the verified Auth phone into `public.profiles.phone` for authorized user-management views. Email is nullable and optional.
 
 Do not collect or expose phone numbers outside the application's legitimate account-management purpose. SMS OTP delivery should be protected with Supabase rate limits and CAPTCHA according to the project's production Auth configuration.
+
+
+## Required phone number
+
+The application continues to authenticate with Supabase email/password. A phone number is required as an application profile field, but no SMS/OTP provider is used.
+
+Users without a phone number are redirected to the authenticated `/setup/phone` page before role-protected application access. The phone is stored in `public.profiles.phone`, normalized to international format, validated by a database constraint, and included in authorized administrator views.
+
+Phone numbers are not used as a login identifier and are not placed in public URLs or audit payloads.
