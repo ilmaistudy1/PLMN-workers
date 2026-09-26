@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { assignUserArea, removeUserArea, setUserAccountStatus, setUserApplicationRole } from "@/app/dashboard/users/actions";
+import { assignUserArea, removeUserArea, setUserAccountStatus, setUserApplicationRole, setUserPhone } from "@/app/dashboard/users/actions";
 
 type Role = { id: string; code: string; name: string; rank: number; is_active: boolean };
 type Area = { id: string; name: string; level: string; is_active: boolean };
@@ -40,6 +40,32 @@ export function UserAccountManager({ actorId, isSuperAdmin, profile, roles, area
     </div>
     <aside className="rounded-2xl bg-white p-6 ring-1 ring-slate-200">
       <h2 className="font-semibold text-slate-950">Account</h2>
+      <form
+        className="mt-4 space-y-3"
+        action={(formData) =>
+          act(() => setUserPhone(profile.id, String(formData.get("phone") ?? "")))
+        }
+      >
+        <label className="block text-sm font-medium text-slate-800">
+          Required phone
+          <input
+            name="phone"
+            required
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            defaultValue={profile.phone ?? ""}
+            placeholder="+923001234567"
+            className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 px-3"
+          />
+        </label>
+        <button
+          disabled={pending}
+          className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {pending ? "Saving..." : "Save phone"}
+        </button>
+      </form>
       <dl className="mt-4 space-y-4 text-sm"><div><dt className="text-xs uppercase tracking-wide text-slate-400">Status</dt><dd className="mt-1 font-medium capitalize">{profile.account_status}</dd></div><div><dt className="text-xs uppercase tracking-wide text-slate-400">Created</dt><dd className="mt-1">{new Date(profile.created_at).toLocaleString()}</dd></div><div><dt className="text-xs uppercase tracking-wide text-slate-400">Updated</dt><dd className="mt-1">{new Date(profile.updated_at).toLocaleString()}</dd></div></dl>
       <div className="mt-6 border-t border-slate-100 pt-6"><p className="text-sm leading-6 text-slate-600">Disabling blocks application access through server authorization and database policy checks. The underlying Supabase Auth account remains intact.</p><button type="button" disabled={pending || actorId === profile.id} onClick={() => { const next = profile.account_status === "active" ? "disabled" : "active"; if (window.confirm(next === "disabled" ? "Disable this application account?" : "Restore this application account?")) act(() => setUserAccountStatus(profile.id, next)); }} className={"mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-semibold " + (profile.account_status === "active" ? "bg-red-600 text-white" : "bg-slate-900 text-white") + " disabled:opacity-50"}>{profile.account_status === "active" ? "Disable application access" : "Restore application access"}</button></div>
       {message && <p role="status" className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">{message}</p>}
