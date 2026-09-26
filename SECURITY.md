@@ -115,3 +115,10 @@ Offline data is stored in IndexedDB as an AES-GCM encrypted state blob. The encr
 Offline writes are queued locally and replayed against Supabase when connectivity returns. Updates use the previously synced `updated_at` value as an optimistic-concurrency check. Conflicts are surfaced to the user rather than silently overwriting a newer server record.
 
 The mobile cache is cleared when the user signs out. When online, the mobile sync checks the current application profile status and clears the cache if the account is disabled.
+
+
+## Phone authentication
+
+Phone login uses a Supabase-managed SMS OTP. The login form does not create accounts; the user's phone must already belong to an authorized Supabase Auth account. The application mirrors the verified Auth phone into `public.profiles.phone` for authorized user-management views. Email is nullable and optional.
+
+Do not collect or expose phone numbers outside the application's legitimate account-management purpose. SMS OTP delivery should be protected with Supabase rate limits and CAPTCHA according to the project's production Auth configuration.
