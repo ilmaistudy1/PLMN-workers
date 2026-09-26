@@ -123,7 +123,7 @@ export async function syncMobileState() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("account_status")
+    .select("account_status,phone")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -136,6 +136,18 @@ export async function syncMobileState() {
       offline: false,
       authenticated: false,
       disabled: true,
+    };
+  }
+
+  if (!profile.phone) {
+    await clearMobileState();
+    return {
+      state: await emptyMobileState(),
+      pushed: 0,
+      conflicts: 0,
+      offline: false,
+      authenticated: true,
+      needs_phone: true,
     };
   }
 
