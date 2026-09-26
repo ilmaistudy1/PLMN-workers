@@ -211,18 +211,18 @@ useEffect(() => {
         void doSync();
       }
     };
+    const onOnline = () => {
+      void doSync();
+    };
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("online", onOnline);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", onInstall as EventListener);
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("online", onOnline);
     };
   }, [doSync]);
-
-  useEffect(() => {
-    if (!online) return;
-    void doSync();
-  }, [doSync, online]);
 
   async function installApp() {
     if (!installEvent?.prompt) return;
