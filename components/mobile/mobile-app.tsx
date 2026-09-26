@@ -160,7 +160,36 @@ export default function MobileApp() {
     );
   }, [query, state.members]);
 
-  useEffect(() => {
+    const doSync = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const result = await syncMobileState();
+      setState(result.state);
+      if (result.authenticated === false && !result.state.user_id) {
+        router.replace("/login?next=%2Fmobile");
+        return;
+      }
+      if (result.offline) {
+        setMessage("Offline mode: using the last synced data on this device.");
+      } else if (result.conflicts) {
+        setMessage("Some offline changes conflict with newer server records. Review the Sync tab.");
+      } else {
+        setMessage(result.pushed ? result.pushed + " offline change(s) synced." : "");
+      }
+    } catch {
+      const local = await readMobileState();
+      setState(local);
+      if (local.user_id) {
+        setMessage("Could not reach the server. Continuing with offline data.");
+      } else {
+        setMessage("Initial sync failed. Connect to the internet and try again.");
+      }
+    } finally {
+      setSyncing(false);
+    }
+  }, [router]);
+
+useEffect(() => {
     const onInstall = (event: Event) => {
       event.preventDefault();
       setInstallEvent(event as Event & { prompt?: () => Promise<void>; userChoice?: Promise<{ outcome: string }> });
@@ -194,35 +223,6 @@ export default function MobileApp() {
     if (!online) return;
     void doSync();
   }, [doSync, online]);
-
-  const doSync = useCallback(async () => {
-    setSyncing(true);
-    try {
-      const result = await syncMobileState();
-      setState(result.state);
-      if (result.authenticated === false && !result.state.user_id) {
-        router.replace("/login?next=%2Fmobile");
-        return;
-      }
-      if (result.offline) {
-        setMessage("Offline mode: using the last synced data on this device.");
-      } else if (result.conflicts) {
-        setMessage("Some offline changes conflict with newer server records. Review the Sync tab.");
-      } else {
-        setMessage(result.pushed ? result.pushed + " offline change(s) synced." : "");
-      }
-    } catch {
-      const local = await readMobileState();
-      setState(local);
-      if (local.user_id) {
-        setMessage("Could not reach the server. Continuing with offline data.");
-      } else {
-        setMessage("Initial sync failed. Connect to the internet and try again.");
-      }
-    } finally {
-      setSyncing(false);
-    }
-  }, [router]);
 
   async function installApp() {
     if (!installEvent?.prompt) return;
