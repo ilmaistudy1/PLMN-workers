@@ -52,8 +52,21 @@ export async function requireAuthenticatedUser() {
   return user;
 }
 
-export async function requireAnyRole(allowed: AppRole[]) {
+export async function requireCompleteProfile() {
   const user = await requireAuthenticatedUser();
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("phone")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile?.phone) redirect("/setup/phone");
+  return user;
+}
+
+export async function requireAnyRole(allowed: AppRole[]) {
+  const user = await requireCompleteProfile();
   const roles = await getCurrentUserRoles();
   if (!roles.some((role) => allowed.includes(role))) notFound();
   return { user, roles };
