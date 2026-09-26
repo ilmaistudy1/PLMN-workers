@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getCurrentUserRoles, requireAuthenticatedUser } from "@/lib/auth/authorization";
+import { getCurrentUserRoles, requireCompleteProfile } from "@/lib/auth/authorization";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 
@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireAuthenticatedUser();
+  const user = await requireCompleteProfile();
   const roles = await getCurrentUserRoles();
 
   return (
