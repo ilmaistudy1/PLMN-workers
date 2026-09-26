@@ -62,3 +62,39 @@ export async function setUserAccountStatus(userId: string, status: AccountStatus
   revalidatePath("/dashboard/users"); revalidatePath("/dashboard/users/" + userId); revalidatePath("/dashboard/audit");
   return { ok: true, message: status === "disabled" ? "Application access disabled." : "Application access restored." };
 }
+
+
+function normalizePhone(input: string) {
+  const trimmed = input.trim();
+  const digits = trimmed.replace(/[^0-9]/g, "");
+  if (!digits) return "";
+  if (trimmed.startsWith("+")) return "+" + digits;
+  if (digits.startsWith("03") && digits.length === 11) return "+92" + digits.slice(1);
+  if (digits.startsWith("92") && digits.length >= 10) return "+" + digits;
+  return "+" + digits;
+}
+
+export async function setUserPhone(userId: string, rawPhone: string) {
+  const { user } = await requireAdmin();
+  if (!userId || user.id === userId) {
+    return { ok: false, message: "Use your own profile setup to change your phone number." };
+  }
+
+  const phone = normalizePhone(rawPhone);
+  if (!/^\+[1-9][0-9]{9,14}$/.test(phone)) {
+    return { ok: false, message: "Enter a valid phone number, for example +923001234567." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ phone })
+    .eq("id", userId);
+
+  if (error) return { ok: false, message: "Phone number could not be updated." };
+
+  revalidatePath("/dashboard/users");
+  revalidatePath("/dashboard/users/" + userId);
+  revalidatePath("/dashboard/audit");
+  return { ok: true, message: "Phone number updated." };
+}
