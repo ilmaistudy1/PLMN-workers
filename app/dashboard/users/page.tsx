@@ -5,6 +5,7 @@ import { requireAdmin, getCurrentUser } from "@/lib/auth/authorization";
 type UserRow = {
   id: string;
   email: string | null;
+  phone: string | null;
   full_name: string | null;
   account_status: "active" | "disabled";
   created_at: string;
@@ -23,7 +24,7 @@ export default async function UsersPage() {
 
   const { data: users, error } = await supabase
     .from("profiles")
-    .select("id,email,full_name,account_status,created_at,user_roles(role_id,roles(code,name,rank,is_active)),user_area_assignments(area_id,areas(id,name,level,is_active))")
+    .select("id,email,phone,full_name,account_status,created_at,user_roles(role_id,roles(code,name,rank,is_active)),user_area_assignments(area_id,areas(id,name,level,is_active))")
     .order("created_at", { ascending: false });
 
   const rows = (users ?? []) as unknown as UserRow[];
@@ -67,7 +68,8 @@ export default async function UsersPage() {
                     <tr key={row.id} className="hover:bg-slate-50">
                       <td className="px-4 py-4">
                         <p className="font-semibold text-slate-900">{row.full_name || "Unnamed account"}{own ? " (you)" : ""}</p>
-                        <p className="mt-1 text-slate-500">{row.email || "No email"}</p>
+                        <p className="mt-1 text-slate-600">{row.phone || "Phone required"}</p>
+                        <p className="mt-0.5 text-slate-400">{row.email || "No email"}</p>
                       </td>
                       <td className="px-4 py-4">
                         {roles.length ? (
