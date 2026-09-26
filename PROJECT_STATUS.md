@@ -217,3 +217,12 @@ Implemented:
 - local data cleared on sign out.
 
 Deliberate boundary: the mobile client never downloads application users outside the signed-in user's authorization scope, and it does not make private supporter data public. The mobile route is intended for authenticated internal use.
+
+
+## Required phone number
+
+Email/password remains the authentication method. Every active application user must also have a phone number stored in `public.profiles.phone`.
+
+There is no SMS OTP. On first access, users without a saved phone number are redirected to `/setup/phone` and must complete the phone field before accessing role-protected application areas.
+
+The phone is normalized to international format such as `+923001234567`, validated at the database boundary, and is visible to authorized administrators in user management.
