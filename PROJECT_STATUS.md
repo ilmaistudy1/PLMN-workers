@@ -217,3 +217,10 @@ Implemented:
 - local data cleared on sign out.
 
 Deliberate boundary: the mobile client never downloads application users outside the signed-in user's authorization scope, and it does not make private supporter data public. The mobile route is intended for authenticated internal use.
+
+
+## Phone-first authentication
+
+The primary login flow now uses Supabase SMS OTP with a phone number. Email is optional in the application profile.
+
+A temporary email/password migration route remains at `/login/email` so the existing first administrator can sign in once, add/verify a phone number in Supabase Auth, and then use phone login. New phone-based accounts are not allowed to self-register from the login page; OTP is sent only with `shouldCreateUser: false`.
