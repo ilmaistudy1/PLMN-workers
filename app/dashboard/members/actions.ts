@@ -29,6 +29,7 @@ async function validateMemberReferences(
   supabase: Awaited<ReturnType<typeof createClient>>,
   areaId: string,
   roleId: string,
+  ucId?: string | null,
 ) {
   const [{ data: area }, { data: role }] = await Promise.all([
     supabase.from("areas").select("id,is_active").eq("id", areaId).maybeSingle(),
@@ -39,6 +40,43 @@ async function validateMemberReferences(
   if (!area.is_active) return { ok: false as const, message: "Selected area is inactive. Choose an active area." };
   if (!role) return { ok: false as const, message: "Selected member role is not available." };
   if (!role.is_active) return { ok: false as const, message: "Selected member role is inactive." };
+
+  if (ucId) {
+    const { data: uc } = await supabase
+      .from("areas")
+      .select("id,parent_id,level,is_active")
+      .eq("id", ucId)
+      .maybeSingle();
+
+    const normalizedLevel = String(uc?.level ?? "").toLowerCase().replace(/[ -]+/g, "_");
+    if (!uc || !uc.is_active || !["uc", "union_council"].includes(normalizedLevel)) {
+      return { ok: false as const, message: "Selected UC is not an active Union Council." };
+    }
+
+    const { data: hierarchy } = await supabase
+      .from("areas")
+      .select("id,parent_id,is_active")
+      .eq("is_active", true);
+
+    const byId = new Map((hierarchy ?? []).map((item) => [item.id, item]));
+    const visited = new Set<string>();
+    let current: string | null = ucId;
+    let belongsToArea = false;
+
+    while (current && !visited.has(current)) {
+      visited.add(current);
+      if (current === areaId) {
+        belongsToArea = true;
+        break;
+      }
+      current = byId.get(current)?.parent_id ?? null;
+    }
+
+    if (!belongsToArea) {
+      return { ok: false as const, message: "Selected UC must belong to the selected area hierarchy." };
+    }
+  }
+
   return { ok: true as const };
 }
 
@@ -74,6 +112,7 @@ export async function createMember(input: {
   address_details: string;
   area_id: string;
   member_role_id: string;
+  uc_id?: string | null;
   status: "active" | "inactive" | "archived";
   confirm_duplicate?: boolean;
 }) {
@@ -91,7 +130,7 @@ export async function createMember(input: {
   if (!alternate.ok) return alternate;
 
   const supabase = await createClient();
-  const references = await validateMemberReferences(supabase, input.area_id, input.member_role_id);
+  const references = await validateMemberReferences(supabase, input.area_id, input.member_role_id, input.uc_id);
   if (!references.ok) return references;
 
   const duplicates = await findDuplicateMembers(supabase, {
@@ -115,6 +154,7 @@ export async function createMember(input: {
     alternate_phone: input.alternate_phone.trim() || null,
     address_details: input.address_details.trim() || null,
     area_id: input.area_id,
+    uc_id: input.uc_id || null,
     member_role_id: input.member_role_id,
     status: input.status,
     created_by: user.id,
@@ -156,10 +196,8 @@ export async function updateMember(input: {
 
   if (existingError || !existing) return { ok: false, message: "Member record is unavailable or outside your scope." };
 
-  if (input.area_id !== existing.area_id) {
-    const references = await validateMemberReferences(supabase, input.area_id, input.member_role_id);
-    if (!references.ok) return references;
-  }
+  const references = await validateMemberReferences(supabase, input.area_id, input.member_role_id, input.uc_id);
+  if (!references.ok) return references;
 
   const roleCheck = await supabase
     .from("member_roles")
@@ -194,6 +232,7 @@ export async function updateMember(input: {
       alternate_phone: input.alternate_phone.trim() || null,
       address_details: input.address_details.trim() || null,
       area_id: input.area_id,
+      uc_id: input.uc_id || null,
       member_role_id: input.member_role_id,
       status: input.status,
     })
