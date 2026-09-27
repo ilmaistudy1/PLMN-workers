@@ -10,7 +10,7 @@ export default async function EditMemberPage({ params }: { params: Promise<{ id:
   const supabase = await createClient();
 
   const [{ data: member }, { data: areas }, { data: roles }] = await Promise.all([
-    supabase.from("members").select("id,full_name,primary_phone,alternate_phone,address_details,area_id,member_role_id,status").eq("id", id).maybeSingle(),
+    supabase.from("members").select("id,full_name,primary_phone,alternate_phone,address_details,area_id,uc_id,member_role_id,status").eq("id", id).maybeSingle(),
     supabase.from("areas").select("id,parent_id,name,level,is_active").order("level").order("name"),
     supabase.from("member_roles").select("id,name,is_active").order("name"),
   ]);
