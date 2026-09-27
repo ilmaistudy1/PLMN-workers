@@ -148,7 +148,7 @@ export function MemberForm({ mode, member, areas, roles }: MemberFormProps) {
                 <option key={uc.id} value={uc.id}>{uc.name}</option>
               ))}
           </select>
-          <p className="mt-1 text-xs font-normal text-slate-400">Optional. Create UC entries in Areas with level "UC".</p>
+          <p className="mt-1 text-xs font-normal text-slate-400">Optional. Create UC entries in Areas with level UC.</p>
         </label>
         <label className="block text-sm font-medium text-slate-700">
           Member Role
