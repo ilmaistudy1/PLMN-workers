@@ -16,6 +16,7 @@ type MemberFormProps = {
     alternate_phone: string | null;
     address_details: string | null;
     area_id: string;
+    uc_id: string | null;
     member_role_id: string;
     status: "active" | "inactive" | "archived";
   };
