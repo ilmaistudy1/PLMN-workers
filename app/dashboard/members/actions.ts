@@ -175,6 +175,7 @@ export async function updateMember(input: {
   address_details: string;
   area_id: string;
   member_role_id: string;
+  uc_id?: string | null;
   status: "active" | "inactive" | "archived";
 }) {
   await requireAnyRole([...MEMBER_WRITE_ROLES]);
