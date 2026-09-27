@@ -22,6 +22,8 @@ export type MobileMember = {
   area_id: string;
   area_name: string;
   area_level: string;
+  uc_id: string | null;
+  uc_name: string | null;
   member_role_id: string;
   member_role_name: string;
   status: "active" | "inactive" | "archived";
