@@ -12,6 +12,8 @@ type Row = {
   primary_phone: string | null;
   area_name: string;
   area_level: string;
+  uc_name: string | null;
+  uc_level: string | null;
   member_role_name: string;
   status: string;
 };
@@ -162,7 +164,7 @@ export function MemberSearch({
   return <section className="space-y-5">
     <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
       <label className="sr-only" htmlFor="member-search">Search members</label>
-      <input id="member-search" value={search} onChange={(event) => { setSearch(event.target.value); setActiveIndex(-1); }} onKeyDown={handleSearchKeyDown} aria-activedescendant={activeIndex >= 0 ? "member-result-" + rows[activeIndex]?.id : undefined} aria-describedby="member-search-help" placeholder="Search by name, phone, area or member role..." className="h-12 w-full rounded-xl border border-slate-300 px-4 text-base outline-none focus:border-slate-900" />
+      <input id="member-search" value={search} onChange={(event) => { setSearch(event.target.value); setActiveIndex(-1); }} onKeyDown={handleSearchKeyDown} aria-activedescendant={activeIndex >= 0 ? "member-result-" + rows[activeIndex]?.id : undefined} aria-describedby="member-search-help" placeholder="Search by name, phone, area, UC or member role..." className="h-12 w-full rounded-xl border border-slate-300 px-4 text-base outline-none focus:border-slate-900" />
       <p id="member-search-help" className="mt-2 text-xs text-slate-400">Use ↑ ↓ to move through results and Enter to open one.</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <select value={province} onChange={(e) => { setProvince(e.target.value); setDistrict(""); setTehsil(""); setLocalArea(""); }} className="h-10 rounded-lg border border-slate-300 px-3 text-sm"><option value="">Province / Region</option>{provinceOptions.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}</select>
@@ -184,11 +186,12 @@ export function MemberSearch({
     <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
       {loading ? <div className="space-y-3 p-5" aria-live="polite" aria-busy="true">{Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-12 animate-pulse rounded-lg bg-slate-100" />)}</div>
       : rows.length === 0 ? <div className="p-10 text-center"><p className="font-semibold text-slate-900">{search || selectedArea || role || status ? "No matching members" : "No members yet"}</p><p className="mt-1 text-sm text-slate-500">{search || selectedArea || role || status ? "Try another search term or clear a filter." : "Add the first member to start building your records."}</p></div>
-      : <div className="overflow-x-auto"><table className="min-w-[760px] w-full text-left text-sm"><thead className="border-b border-slate-200 bg-slate-50 text-slate-500"><tr><th className="px-4 py-3 font-medium">Member</th><th className="px-4 py-3 font-medium">Phone</th><th className="px-4 py-3 font-medium">Area</th><th className="px-4 py-3 font-medium">Role</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3" /></tr></thead>
+      : <div className="overflow-x-auto"><table className="min-w-[760px] w-full text-left text-sm"><thead className="border-b border-slate-200 bg-slate-50 text-slate-500"><tr><th className="px-4 py-3 font-medium">Member</th><th className="px-4 py-3 font-medium">Phone</th><th className="px-4 py-3 font-medium">Area</th><th className="px-4 py-3 font-medium">UC</th><th className="px-4 py-3 font-medium">Role</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3" /></tr></thead>
         <tbody className="divide-y divide-slate-100">{rows.map((row, index) => <tr id={"member-result-" + row.id} key={row.id} className={index === activeIndex ? "bg-slate-50 ring-1 ring-inset ring-slate-300" : "hover:bg-slate-50"}>
           <td className="px-4 py-3"><Link href={"/dashboard/members/" + row.id} className="font-semibold text-slate-900 hover:underline"><Highlight value={row.full_name} query={search} /></Link></td>
           <td className="px-4 py-3 text-slate-600"><Highlight value={row.primary_phone || "—"} query={search} /></td>
           <td className="px-4 py-3"><span className="font-medium"><Highlight value={row.area_name} query={search} /></span><span className="ml-2 text-xs text-slate-400">{prettyLevel(row.area_level)}</span></td>
+          <td className="px-4 py-3 text-slate-600"><Highlight value={row.uc_name || "—"} query={search} /></td>
           <td className="px-4 py-3 text-slate-600"><Highlight value={row.member_role_name} query={search} /></td>
           <td className="px-4 py-3 capitalize text-slate-600">{row.status}</td>
           <td className="px-4 py-3 text-right"><Link className="font-medium text-slate-700 hover:underline" href={"/dashboard/members/" + row.id}>View</Link></td>
