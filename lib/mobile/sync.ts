@@ -19,6 +19,8 @@ type SearchRow = {
   area_id: string;
   area_name: string;
   area_level: string;
+  uc_id: string | null;
+  uc_name: string | null;
   member_role_id: string;
   member_role_name: string;
   status: "active" | "inactive" | "archived";
@@ -86,6 +88,8 @@ async function fetchServerSnapshot(userId: string, email: string | null) {
         area_id: row.area_id,
         area_name: row.area_name,
         area_level: row.area_level,
+        uc_id: row.uc_id,
+        uc_name: row.uc_name,
         member_role_id: row.member_role_id,
         member_role_name: row.member_role_name,
         status: row.status,
@@ -189,15 +193,17 @@ export async function syncMobileState() {
             alternate_phone: local.alternate_phone,
             address_details: local.address_details,
             area_id: local.area_id,
+            uc_id: local.uc_id,
             member_role_id: local.member_role_id,
             status: local.status,
             created_by: user.id,
           })
-          .select("id,full_name,primary_phone,alternate_phone,address_details,area_id,member_role_id,status,created_at,updated_at")
+          .select("id,full_name,primary_phone,alternate_phone,address_details,area_id,uc_id,member_role_id,status,created_at,updated_at")
           .single();
 
         if (error) throw new Error(error.code === "23505" ? "A matching record already exists on the server." : "Create failed.");
         const area = currentState.areas.find((item) => item.id === data.area_id);
+        const uc = currentState.areas.find((item) => item.id === data.uc_id);
         const role = currentState.roles.find((item) => item.id === data.member_role_id);
 
         currentState.members = currentState.members.map((item) =>
@@ -208,6 +214,7 @@ export async function syncMobileState() {
                 created_by: user.id,
                 area_name: area?.name ?? item.area_name,
                 area_level: area?.level ?? item.area_level,
+                uc_name: uc?.name ?? null,
                 member_role_name: role?.name ?? item.member_role_name,
               }
             : item,
