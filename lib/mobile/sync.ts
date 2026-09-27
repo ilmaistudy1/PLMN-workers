@@ -227,7 +227,7 @@ export async function syncMobileState() {
           .update(change.payload)
           .eq("id", change.member_id)
           .eq("updated_at", change.base_updated_at)
-          .select("id,full_name,primary_phone,alternate_phone,address_details,area_id,member_role_id,status,created_at,updated_at")
+          .select("id,full_name,primary_phone,alternate_phone,address_details,area_id,uc_id,member_role_id,status,created_at,updated_at")
           .maybeSingle();
 
         if (error) throw new Error("Update failed.");
@@ -242,6 +242,7 @@ export async function syncMobileState() {
         }
 
         const area = currentState.areas.find((item) => item.id === data.area_id);
+        const uc = currentState.areas.find((item) => item.id === data.uc_id);
         const role = currentState.roles.find((item) => item.id === data.member_role_id);
 
         currentState.members = currentState.members.map((item) =>
@@ -251,6 +252,7 @@ export async function syncMobileState() {
                 ...data,
                 area_name: area?.name ?? item.area_name,
                 area_level: area?.level ?? item.area_level,
+                uc_name: uc?.name ?? null,
                 member_role_name: role?.name ?? item.member_role_name,
               }
             : item,
