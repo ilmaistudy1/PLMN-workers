@@ -49,8 +49,27 @@ export function MemberForm({ mode, member, areas, roles }: MemberFormProps) {
   const [duplicates, setDuplicates] = useState<Array<{ id: string; full_name: string; primary_phone: string | null }>>([]);
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
 
+  const [selectedAreaId, setSelectedAreaId] = useState(member?.area_id ?? "");
+  const [selectedUcId, setSelectedUcId] = useState(member?.uc_id ?? "");
   const activeAreas = areas.filter((area) => area.is_active || area.id === member?.area_id);
   const activeRoles = roles.filter((role) => role.is_active || role.id === member?.member_role_id);
+  const selectedAreaTree = new Set<string>(selectedAreaId ? [selectedAreaId] : []);
+  let treeChanged = true;
+  while (treeChanged) {
+    treeChanged = false;
+    for (const area of areas) {
+      if (area.parent_id && selectedAreaTree.has(area.parent_id) && !selectedAreaTree.has(area.id)) {
+        selectedAreaTree.add(area.id);
+        treeChanged = true;
+      }
+    }
+  }
+  const ucOptions = areas.filter((area) => {
+    const level = area.level.toLowerCase().replace(/[ -]+/g, "_");
+    return ["uc", "union_council"].includes(level) &&
+      area.is_active &&
+      selectedAreaTree.has(area.id);
+  });
 
   function submit(formData: FormData) {
     setError("");
@@ -61,6 +80,7 @@ export function MemberForm({ mode, member, areas, roles }: MemberFormProps) {
         alternate_phone: String(formData.get("alternate_phone") ?? ""),
         address_details: String(formData.get("address_details") ?? ""),
         area_id: String(formData.get("area_id") ?? ""),
+        uc_id: String(formData.get("uc_id") ?? "") || null,
         member_role_id: String(formData.get("member_role_id") ?? ""),
         status: String(formData.get("status") ?? "active") as "active" | "inactive" | "archived",
       };
@@ -100,7 +120,7 @@ export function MemberForm({ mode, member, areas, roles }: MemberFormProps) {
         </label>
         <label className="block text-sm font-medium text-slate-700">
           Area
-          <select name="area_id" required defaultValue={member?.area_id ?? ""} className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 bg-white px-3">
+          <select name="area_id" required value={selectedAreaId} onChange={(event) => { setSelectedAreaId(event.target.value); setSelectedUcId(""); }} className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 bg-white px-3">
             <option value="">Select area</option>
             {activeAreas
               .slice()
@@ -109,6 +129,25 @@ export function MemberForm({ mode, member, areas, roles }: MemberFormProps) {
                 <option key={area.id} value={area.id}>{area.level} — {area.name}</option>
               ))}
           </select>
+        </label>
+        <label className="block text-sm font-medium text-slate-700">
+          Union Council (optional)
+          <select
+            name="uc_id"
+            value={selectedUcId}
+            onChange={(event) => setSelectedUcId(event.target.value)}
+            disabled={!selectedAreaId || ucOptions.length === 0}
+            className="mt-1.5 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 disabled:bg-slate-100"
+          >
+            <option value="">No UC / Not specified</option>
+            {ucOptions
+              .slice()
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((uc) => (
+                <option key={uc.id} value={uc.id}>{uc.name}</option>
+              ))}
+          </select>
+          <p className="mt-1 text-xs font-normal text-slate-400">Optional. Create UC entries in Areas with level "UC".</p>
         </label>
         <label className="block text-sm font-medium text-slate-700">
           Member Role
