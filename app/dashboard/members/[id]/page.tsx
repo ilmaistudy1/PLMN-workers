@@ -13,7 +13,7 @@ export default async function MemberDetailsPage({ params }: { params: Promise<{ 
 
   const { data: member, error } = await supabase
     .from("members")
-    .select("id,full_name,primary_phone,alternate_phone,address_details,area_id,member_role_id,status,created_at,updated_at,areas(name,level,is_active),member_roles(name,is_active)")
+    .select("id,full_name,primary_phone,alternate_phone,address_details,area_id,uc_id,member_role_id,status,created_at,updated_at,areas(name,level,is_active),member_roles(name,is_active)")
     .eq("id", id)
     .maybeSingle();
 
@@ -21,6 +21,11 @@ export default async function MemberDetailsPage({ params }: { params: Promise<{ 
 
   const area = Array.isArray(member.areas) ? member.areas[0] : member.areas;
   const memberRole = Array.isArray(member.member_roles) ? member.member_roles[0] : member.member_roles;
+  let uc: { name?: string; level?: string; is_active?: boolean } | null = null;
+  if (member.uc_id) {
+    const { data: ucRow } = await supabase.from("areas").select("name,level,is_active").eq("id", member.uc_id).maybeSingle();
+    uc = ucRow;
+  }
 
   return (
     <section className="space-y-6">
@@ -48,7 +53,7 @@ export default async function MemberDetailsPage({ params }: { params: Promise<{ 
             <div><dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Alternate phone</dt><dd className="mt-1 text-sm text-slate-800">{member.alternate_phone || "Not provided"}</dd></div>
             <div><dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Area</dt><dd className="mt-1 text-sm text-slate-800">{area?.name || "Not available"}{area?.is_active === false ? " · inactive" : ""}</dd></div>
             <div><dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Area level</dt><dd className="mt-1 text-sm capitalize text-slate-800">{area?.level || "Not available"}</dd></div>
-            <div><dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Member role</dt><dd className="mt-1 text-sm text-slate-800">{memberRole?.name || "Not available"}{memberRole?.is_active === false ? " · inactive" : ""}</dd></div>
+            <div><dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Union Council</dt><dd className="mt-1 text-sm text-slate-800">{uc?.name || "Not specified"}{uc?.is_active === false ? " · inactive" : ""}</dd></div>\n            <div><dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Member role</dt><dd className="mt-1 text-sm text-slate-800">{memberRole?.name || "Not available"}{memberRole?.is_active === false ? " · inactive" : ""}</dd></div>
             <div><dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Created</dt><dd className="mt-1 text-sm text-slate-800">{new Date(member.created_at).toLocaleString()}</dd></div>
           </dl>
           <div className="mt-6 border-t border-slate-100 pt-5">
