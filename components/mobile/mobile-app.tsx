@@ -97,6 +97,7 @@ function MemberCard({
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
         <span className="rounded-full bg-slate-100 px-2.5 py-1">{areaLabel(state, member.area_id)}</span>
+        {member.uc_name && <span className="rounded-full bg-slate-100 px-2.5 py-1">UC: {member.uc_name}</span>}
         <span className="rounded-full bg-slate-100 px-2.5 py-1">{roleLabel(state, member.member_role_id)}</span>
       </div>
     </button>
@@ -144,6 +145,7 @@ export default function MobileApp() {
     alternate_phone: "",
     address_details: "",
     area_id: "",
+    uc_id: "",
     member_role_id: "",
     status: "active" as MobileMember["status"],
   });
@@ -156,6 +158,7 @@ export default function MobileApp() {
       (member.primary_phone ?? "").toLowerCase().includes(trimmed) ||
       (member.alternate_phone ?? "").toLowerCase().includes(trimmed) ||
       member.area_name.toLowerCase().includes(trimmed) ||
+      (member.uc_name ?? "").toLowerCase().includes(trimmed) ||
       member.member_role_name.toLowerCase().includes(trimmed),
     );
   }, [query, state.members]);
@@ -242,6 +245,7 @@ useEffect(() => {
       alternate_phone: "",
       address_details: "",
       area_id: state.areas.find((item) => item.is_active)?.id ?? "",
+      uc_id: "",
       member_role_id: state.roles.find((item) => item.is_active)?.id ?? "",
       status: "active",
     });
@@ -256,6 +260,7 @@ useEffect(() => {
       alternate_phone: member.alternate_phone ?? "",
       address_details: member.address_details ?? "",
       area_id: member.area_id,
+      uc_id: member.uc_id ?? "",
       member_role_id: member.member_role_id,
       status: member.status,
     });
@@ -286,6 +291,7 @@ useEffect(() => {
 
     const now = new Date().toISOString();
     const area = state.areas.find((item) => item.id === form.area_id);
+    const uc = state.areas.find((item) => item.id === form.uc_id);
     const role = state.roles.find((item) => item.id === form.member_role_id);
 
     if (!editing) {
@@ -297,6 +303,8 @@ useEffect(() => {
         alternate_phone: form.alternate_phone.trim() || null,
         address_details: form.address_details.trim() || null,
         area_id: form.area_id,
+        uc_id: form.uc_id || null,
+        uc_name: uc?.name ?? null,
         area_name: area?.name ?? "",
         area_level: area?.level ?? "",
         member_role_id: form.member_role_id,
@@ -339,6 +347,8 @@ useEffect(() => {
       alternate_phone: form.alternate_phone.trim() || null,
       address_details: form.address_details.trim() || null,
       area_id: form.area_id,
+      uc_id: form.uc_id || null,
+      uc_name: uc?.name ?? null,
       area_name: area?.name ?? "",
       area_level: area?.level ?? "",
       member_role_id: form.member_role_id,
@@ -374,6 +384,7 @@ useEffect(() => {
               alternate_phone: updated.alternate_phone,
               address_details: updated.address_details,
               area_id: updated.area_id,
+              uc_id: updated.uc_id,
               member_role_id: updated.member_role_id,
               status: updated.status,
             },
@@ -722,13 +733,41 @@ useEffect(() => {
               <select
                 required
                 value={form.area_id}
-                onChange={(event) => setForm((value) => ({ ...value, area_id: event.target.value }))}
+                onChange={(event) => setForm((value) => ({ ...value, area_id: event.target.value, uc_id: "" }))}
                 className="h-11 w-full rounded-xl border border-slate-300 px-3"
               >
                 <option value="">Select area</option>
                 {state.areas.filter((item) => item.is_active).map((area) => (
                   <option key={area.id} value={area.id}>{area.name} · {area.level}</option>
                 ))}
+              </select>
+              <select
+                value={form.uc_id}
+                onChange={(event) => setForm((value) => ({ ...value, uc_id: event.target.value }))}
+                disabled={!form.area_id}
+                className="h-11 w-full rounded-xl border border-slate-300 px-3"
+              >
+                <option value="">No UC / Not specified</option>
+                {(() => {
+                  const ids = new Set<string>(form.area_id ? [form.area_id] : []);
+                  let changed = true;
+                  while (changed) {
+                    changed = false;
+                    for (const item of state.areas) {
+                      if (item.parent_id && ids.has(item.parent_id) && !ids.has(item.id)) {
+                        ids.add(item.id);
+                        changed = true;
+                      }
+                    }
+                  }
+                  return state.areas
+                    .filter((item) => {
+                      const level = item.level.toLowerCase().replace(/[ -]+/g, "_");
+                      return item.is_active && ids.has(item.id) && ["uc", "union_council"].includes(level);
+                    })
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((ucItem) => <option key={ucItem.id} value={ucItem.id}>{ucItem.name}</option>);
+                })()}
               </select>
               <select
                 required
